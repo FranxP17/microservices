@@ -2,9 +2,11 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/authStore";
 import AuthLayout from "../layouts/AuthLayout.vue";
 import AdminLayout from "../layouts/AdminLayout.vue";
+import HomeLayout from "../layouts/HomeLayout.vue";
 import Login from "../features/auth/views/LoginView.vue";
 import Register from "../features/auth/views/RegisterView.vue";
 import Dashboard from "../features/dashboard/views/DashboardView.vue";
+import MainView from "../features/home/views/MainView.vue";
 import Users from "../features/users/views/UsersView.vue";
 
 const routes = [
@@ -34,9 +36,20 @@ const routes = [
       },
     ],
   },
-
   {
     path: "/",
+    component: HomeLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: "",
+        name: "home",
+        component: MainView,
+      },
+    ],
+  },
+  {
+    path: "/admin/dashboard",
     component: AdminLayout,
     meta: { requiresAuth: true },
     children: [
@@ -44,11 +57,27 @@ const routes = [
         path: "",
         name: "dashboard",
         component: Dashboard,
+        meta: {
+          navigation: {
+            label: "Dashboard",
+            icon: "fa-solid fa-house",
+            section: "GENERAL",
+            order: 1,
+          },
+        },
       },
       {
-        path: "users",
+        path: "u",
         name: "users",
         component: Users,
+        meta: {
+          navigation: {
+            label: "Usuarios",
+            icon: "fa-solid fa-users",
+            section: "GENERAL",
+            order: 2,
+          },
+        },
       },
     ],
   },
