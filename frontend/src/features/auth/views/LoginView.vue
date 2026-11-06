@@ -16,7 +16,7 @@ async function handleLogin(credentials) {
   try {
     await authStore.login(credentials);
 
-    router.push({ name: "dashboard" });
+    router.push({ name: "home" });
   } catch (error) {
     const status = error.response?.status;
 

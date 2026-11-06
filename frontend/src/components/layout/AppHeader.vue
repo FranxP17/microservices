@@ -73,8 +73,8 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div>
-      <h3>Panel administrativo</h3>
-      <p>Bienvenido al sistema</p>
+      <h3> {{ userRole !== 'ADMIN' ? 'Home' : 'Panel administrativo' }}</h3>
+      <p>Bienvenido {{userRole !== 'ADMIN' ? userName : 'al sistema'}}</p>
     </div>
 
     <div ref="menuRef" class="header-menu">
@@ -99,24 +99,42 @@ onBeforeUnmount(() => {
         ></i>
       </button>
 
-      <div v-if="menuOpen" id="user-menu" class="dropdown" role="menu">
-        <button class="dropdown-item" type="button" role="menuitem" @click="go('home')">
-          <i class="fa-solid fa-user" aria-hidden="true"></i> Mi perfil
-        </button>
-        <button
-          v-if="isAdmin && !inAdminArea"
-          class="dropdown-item"
-          type="button"
-          role="menuitem"
-          @click="go('dashboard')"
-        >
-          <i class="fa-solid fa-user-shield" aria-hidden="true"></i> Panel de administración
-        </button>
-        <hr />
-        <button class="dropdown-item danger" type="button" role="menuitem" @click="handleLogout">
-          <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Cerrar sesión
-        </button>
-      </div>
+      <Transition name="dropdown">
+        <div v-if="menuOpen" id="user-menu" class="dropdown" role="menu">
+          <div class="dropdown-profile">
+            <span class="avatar" aria-hidden="true">{{ userInitials }}</span>
+            <span class="dropdown-profile-text">
+              <strong>{{ userName }}</strong>
+              <small>{{ authStore.user?.email || userRole }}</small>
+            </span>
+          </div>
+
+          <div class="dropdown-section">
+            <button class="dropdown-item" type="button" role="menuitem" @click="go('home')">
+              <i class="fa-solid fa-user" aria-hidden="true"></i>
+              <span>Mi perfil</span>
+            </button>
+            <button
+              v-if="isAdmin && !inAdminArea"
+              class="dropdown-item accent"
+              type="button"
+              role="menuitem"
+              @click="go('dashboard')"
+            >
+              <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+              <span>Panel de administración</span>
+              <i class="fa-solid fa-arrow-right dropdown-arrow" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <div class="dropdown-section">
+            <button class="dropdown-item danger" type="button" role="menuitem" @click="handleLogout">
+              <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+              <span>Cerrar sesión</span>
+            </button>
+          </div>
+        </div>
+      </Transition>
     </div>
   </header>
 </template>
@@ -203,20 +221,74 @@ onBeforeUnmount(() => {
 
 .dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
   z-index: 20;
-  min-width: 220px;
-  padding: 6px;
+  width: 270px;
+  overflow: hidden;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(22, 42, 36, 0.14);
+  border-radius: 12px;
+  box-shadow:
+    0 2px 6px rgba(22, 42, 36, 0.06),
+    0 16px 36px rgba(22, 42, 36, 0.16);
+  transform-origin: top right;
 }
 
-.dropdown hr {
-  margin: 6px 0;
-  border: 0;
+.dropdown::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 24px;
+  width: 11px;
+  height: 11px;
+  background: var(--color-background);
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+  transform: rotate(45deg);
+}
+
+.dropdown-profile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dropdown-profile-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dropdown-profile-text strong {
+  font-size: 14px;
+}
+
+.dropdown-profile-text small {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.dropdown-profile-text strong,
+.dropdown-profile-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+}
+
+.dropdown-section + .dropdown-section {
   border-top: 1px solid var(--color-border);
 }
 
@@ -224,29 +296,82 @@ onBeforeUnmount(() => {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 10px 12px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--color-text);
   font-size: 13px;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease;
 }
 
-.dropdown-item i {
-  width: 16px;
+.dropdown-item > i:first-child {
+  flex: 0 0 18px;
   text-align: center;
   color: var(--color-muted);
+  transition: color 0.14s ease;
 }
 
-.dropdown-item:hover {
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
   background: var(--color-background);
 }
 
+.dropdown-item:hover > i:first-child {
+  color: var(--color-primary);
+}
+
+.dropdown-item.accent {
+  color: var(--color-primary-dark);
+}
+
+.dropdown-item.accent > i:first-child {
+  color: var(--color-primary);
+}
+
+.dropdown-arrow {
+  margin-left: auto;
+  font-size: 11px;
+  opacity: 0.6;
+  transition: transform 0.14s ease;
+}
+
+.dropdown-item.accent:hover .dropdown-arrow {
+  transform: translateX(3px);
+}
+
 .dropdown-item.danger,
-.dropdown-item.danger i {
+.dropdown-item.danger > i:first-child {
   color: #b42318;
+}
+
+.dropdown-item.danger:hover {
+  background: #fef3f2;
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown-enter-active,
+  .dropdown-leave-active {
+    transition: none;
+  }
 }
 
 @media (max-width: 560px) {
