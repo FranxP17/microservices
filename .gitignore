@@ -1,0 +1,39 @@
+# .NET
+**/bin/
+**/obj/
+
+# Visual studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+#Rinder
+.idea/
+
+# VS code
+.vscode/
+
+# Node / vue
+**/node_modules/
+**/dist/
+
+# Enviroment variables
+.env
+.env.*
+!.env.example
+.env.production
+
+# Logs
+*.log
+
+#Docker
+docker-data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+appsettings.Production.json
+
