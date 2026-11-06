@@ -1,5 +1,6 @@
 import { computed, onMounted, ref } from "vue";
 import { userService } from "../services/userService";
+import { usePaginatedUsers } from "./usePaginatedUsers";
 import { getErrorMessagge } from "../../../utils/errorHandler";
 
 const roles = ["JOYENT", "CRITIC", "ADMIN"];
@@ -25,9 +26,7 @@ function enumName(value, options) {
 }
 
 export function useUsers() {
-  const users = ref([]);
-  const loading = ref(false);
-  const errorMessage = ref("");
+  const { users, loading, errorMessage, hasMore, loadUsers, reloadUsers } = usePaginatedUsers();
   const search = ref("");
   const editOpen = ref(false);
   const editingUser = ref(null);
@@ -49,23 +48,6 @@ export function useUsers() {
         .some((value) => String(value).toLowerCase().includes(query)),
     );
   });
-
-  async function loadUsers() {
-    loading.value = true;
-    errorMessage.value = "";
-    updateMessage.value = "";
-
-    try {
-      const response = await userService.getAll();
-      users.value = Array.isArray(response)
-        ? response
-        : (response?.data ?? response?.Data ?? []);
-    } catch (error) {
-      errorMessage.value = getErrorMessagge(error);
-    } finally {
-      loading.value = false;
-    }
-  }
 
   function openEditModal(user) {
     editingUser.value = user;
@@ -113,17 +95,17 @@ export function useUsers() {
   }
 
   async function confirmDeleteUser() {
-    if (!deleteUser.value || deleteLoading.value) return;
+    if (!deleteUser.value || deleteLoading.value || loading.value) return;
     deleteLoading.value = true;
     deleteError.value = "";
     const id = deleteUser.value.id;
 
     try {
       await userService.delete(id);
-      users.value = users.value.filter((user) => user.id !== id);
       updateMessage.value = "El usuario se eliminó correctamente.";
       deleteLoading.value = false;
       closeDeleteModal();
+      await reloadUsers();
     } catch (error) {
       deleteError.value = getErrorMessagge(error);
     } finally {
@@ -176,10 +158,10 @@ export function useUsers() {
         return;
       }
 
-      if (isEditing) {
-        const userIndex = users.value.findIndex((user) => user.id === savedUser.id);
-        if (userIndex !== -1) users.value[userIndex] = savedUser;
-      } else {
+      const userIndex = users.value.findIndex((user) => user.id === savedUser.id);
+      if (userIndex !== -1) {
+        users.value[userIndex] = savedUser;
+      } else if (!isEditing) {
         users.value.push(savedUser);
       }
 
@@ -201,6 +183,7 @@ export function useUsers() {
     users,
     loading,
     errorMessage,
+    hasMore,
     search,
     editOpen,
     editingUser,

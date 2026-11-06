@@ -8,6 +8,7 @@ const {
   users,
   loading,
   errorMessage,
+  hasMore,
   search,
   editOpen,
   editingUser,
@@ -45,7 +46,7 @@ const {
         <BaseButton type="button" color="primary" @click="openCreateModal">
           Registrar usuario
         </BaseButton>
-        <span class="record-count">{{ users.length }} registros</span>
+        <span class="record-count">{{ users.length }} registros cargados</span>
       </div>
     </div>
 
@@ -57,7 +58,7 @@ const {
       <div class="table-toolbar">
         <div class="table-heading">
           <h2>Directorio</h2>
-          <p>{{ filteredUsers.length }} resultados</p>
+          <p>{{ filteredUsers.length }} resultados entre los usuarios cargados</p>
         </div>
         <label class="search-control">
           <span class="visually-hidden">Buscar usuarios</span>
@@ -84,23 +85,14 @@ const {
           </thead>
 
           <tbody>
-            <tr v-if="loading">
-              <td colspan="5" class="empty-state">Cargando usuarios...</td>
-            </tr>
-            <tr v-else-if="errorMessage">
-              <td colspan="5" class="empty-state">
-                {{ errorMessage }}
-                <button @click="loadUsers">Reintentar</button>
-              </td>
-            </tr>
-            <tr v-else-if="filteredUsers.length === 0">
-              <td colspan="5" class="empty-state">
+            <tr v-if="filteredUsers.length === 0 && !loading && !errorMessage">
+              <td colspan="7" class="empty-state">
                 {{
                   search ? "No hay usuarios que coincidan." : "No hay usuarios."
                 }}
               </td>
             </tr>
-            <tr v-else v-for="user in filteredUsers" :key="user.id">
+            <tr v-for="user in filteredUsers" :key="user.id">
               <td class="user-id">{{ user.id }}</td>
               <td>{{ user.displayName || user.name || "Sin nombre" }}</td>
               <td>{{ user.email }}</td>
@@ -131,6 +123,7 @@ const {
                   type="button"
                   color="danger"
                   size="sm"
+                  :disabled="loading"
                   :aria-label="`Eliminar usuario ${user.displayName || user.name || user.email}`"
                   @click="openDeleteModal(user)"
                 >
@@ -140,6 +133,19 @@ const {
             </tr>
           </tbody>
         </table>
+      </div>
+      <div v-if="errorMessage || hasMore" class="pagination-controls">
+        <p v-if="errorMessage" class="error-message" role="alert">{{ errorMessage }}</p>
+        <BaseButton
+          type="button"
+          color="secondary"
+          size="sm"
+          :loading="loading"
+          :disabled="deleteLoading"
+          @click="loadUsers"
+        >
+          {{ loading ? "Cargando usuarios..." : errorMessage ? "Reintentar" : "Cargar más" }}
+        </BaseButton>
       </div>
     </div>
 
@@ -289,7 +295,7 @@ const {
           <BaseButton type="button" color="neutral" :disabled="deleteLoading" @click="closeDeleteModal">
             Cancelar
           </BaseButton>
-          <BaseButton type="submit" color="danger" :loading="deleteLoading">
+          <BaseButton type="submit" color="danger" :loading="deleteLoading" :disabled="loading">
             {{ deleteLoading ? "Eliminando..." : "Eliminar definitivamente" }}
           </BaseButton>
         </footer>
@@ -426,6 +432,16 @@ const {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   overflow: hidden;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
 }
 
 .table-toolbar {

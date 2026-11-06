@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { userService } from "../../users/services/userService";
+import BaseButton from "../../../components/common/BaseButton.vue";
+import { usePaginatedUsers } from "../../users/composables/usePaginatedUsers";
 import { useAuthStore } from "../../../stores/authStore";
-import { getErrorMessagge } from "../../../utils/errorHandler";
 
 defineProps({
   selectedId: { type: [String, Number], default: null },
@@ -10,9 +10,7 @@ defineProps({
 const emit = defineEmits(["select"]);
 
 const authStore = useAuthStore();
-const users = ref([]);
-const loading = ref(false);
-const errorMessage = ref("");
+const { users, loading, errorMessage, hasMore, loadUsers } = usePaginatedUsers();
 const search = ref("");
 
 const visibleUsers = computed(() => {
@@ -42,21 +40,6 @@ function initials(user) {
     .toUpperCase();
 }
 
-async function loadUsers() {
-  loading.value = true;
-  errorMessage.value = "";
-  try {
-    const response = await userService.getAll();
-    users.value = Array.isArray(response)
-      ? response
-      : (response?.data ?? response?.Data ?? []);
-  } catch (error) {
-    errorMessage.value = getErrorMessagge(error);
-  } finally {
-    loading.value = false;
-  }
-}
-
 onMounted(loadUsers);
 </script>
 
@@ -70,17 +53,13 @@ onMounted(loadUsers);
       placeholder="Buscar usuario"
       aria-label="Buscar usuario"
     />
+    <p v-if="search" class="list-state">La búsqueda solo incluye usuarios cargados.</p>
 
-    <p v-if="loading" class="list-state">Cargando usuarios...</p>
-    <p v-else-if="errorMessage" class="list-state" role="alert">
-      {{ errorMessage }}
-      <button type="button" @click="loadUsers">Reintentar</button>
-    </p>
-    <p v-else-if="visibleUsers.length === 0" class="list-state">
+    <p v-if="visibleUsers.length === 0 && !loading && !errorMessage" class="list-state">
       No hay usuarios para mostrar.
     </p>
 
-    <ul v-else>
+    <ul v-if="visibleUsers.length">
       <li v-for="user in visibleUsers" :key="user.id">
         <button
           type="button"
@@ -100,6 +79,20 @@ onMounted(loadUsers);
         </button>
       </li>
     </ul>
+    <p v-if="errorMessage" class="list-state" role="alert">
+      {{ errorMessage }}
+      <button type="button" @click="loadUsers">Reintentar</button>
+    </p>
+    <BaseButton
+      v-else-if="hasMore"
+      type="button"
+      color="secondary"
+      size="sm"
+      :loading="loading"
+      @click="loadUsers"
+    >
+      {{ loading ? "Cargando usuarios..." : "Cargar más" }}
+    </BaseButton>
   </aside>
 </template>
 
