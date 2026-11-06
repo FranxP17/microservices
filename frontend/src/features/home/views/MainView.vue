@@ -1,79 +1,35 @@
 <script setup>
-import { computed, ref } from "vue";
-import { useAuthStore } from "../../../stores/authStore";
-import { userService } from "../../users/services/userService";
-import { getErrorMessagge } from "../../../utils/errorHandler";
+import BaseButton from "../../../components/common/BaseButton.vue";
+import BaseInput from "../../../components/common/BaseInput.vue";
+import BaseModal from "../../../components/common/BaseModal.vue";
 import HomeSideBar from "../components/HomeSideBar.vue";
+import { useHome } from "../composables/useHome.js";
 
-const roles = ["JOYENT", "CRITIC", "ADMIN"];
-const statuses = ["ACTIVE", "INACTIVE", "BLOCKED"];
-const statusLabels = { ACTIVE: "Activo", INACTIVE: "Inactivo", BLOCKED: "Bloqueado" };
-
-const authStore = useAuthStore();
-const selectedUser = ref(null);
-const detailLoading = ref(false);
-const detailError = ref("");
-let requestId = 0;
-
-const isOwnProfile = computed(() => !selectedUser.value);
-const profile = computed(() => selectedUser.value ?? authStore.user ?? {});
-const name = computed(
-  () => profile.value.displayName || profile.value.name || profile.value.email || "Usuario",
-);
-const initials = computed(() =>
-  name.value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase(),
-);
-
-function enumName(value, options) {
-  if (typeof value === "number") return options[value] ?? "";
-  const normalized = String(value ?? "").toUpperCase();
-  if (/^\d+$/.test(normalized)) return options[Number(normalized)] ?? "";
-  return options.includes(normalized) ? normalized : normalized;
-}
-
-const role = computed(() => enumName(profile.value.role, roles) || "—");
-const status = computed(() => {
-  const value = enumName(profile.value.status, statuses);
-  return statusLabels[value] || value || "—";
-});
-
-const details = computed(() => [
-  { label: "Correo", value: profile.value.email },
-  { label: "Teléfono", value: profile.value.tel },
-  { label: "Rol", value: role.value },
-  { label: "Estado", value: status.value },
-  { label: "ID", value: profile.value.id },
-]);
-
-async function selectUser(user) {
-  const current = ++requestId;
-  selectedUser.value = user;
-  detailError.value = "";
-  detailLoading.value = true;
-  try {
-    const detail = await userService.getById(user.id);
-    if (current === requestId) {
-      selectedUser.value = { ...user, ...(detail?.user ?? detail ?? {}) };
-    }
-  } catch (error) {
-    if (current === requestId) detailError.value = getErrorMessagge(error);
-  } finally {
-    if (current === requestId) detailLoading.value = false;
-  }
-}
-
-function showOwnProfile() {
-  requestId++;
-  selectedUser.value = null;
-  detailError.value = "";
-  detailLoading.value = false;
-}
+const {
+  selectedUser,
+  isOwnProfile,
+  profile,
+  name,
+  initials,
+  details,
+  detailLoading,
+  detailError,
+  selectUser,
+  showOwnProfile,
+  editOpen,
+  editLoading,
+  editError,
+  editForm,
+  openEditProfile,
+  closeEditProfile,
+  saveProfile,
+  deleteOpen,
+  deleteLoading,
+  deleteError,
+  openDeleteAccount,
+  closeDeleteAccount,
+  confirmDeleteAccount,
+} = useHome();
 </script>
 
 <template>
@@ -81,7 +37,12 @@ function showOwnProfile() {
     <HomeSideBar :selected-id="selectedUser?.id" @select="selectUser" />
 
     <section class="profile-panel" aria-live="polite">
-      <button v-if="!isOwnProfile" class="back-button" type="button" @click="showOwnProfile">
+      <button
+        v-if="!isOwnProfile"
+        class="back-button"
+        type="button"
+        @click="showOwnProfile"
+      >
         ← Volver a mi perfil
       </button>
 
@@ -92,14 +53,18 @@ function showOwnProfile() {
             <template v-else>{{ initials }}</template>
           </div>
           <div>
-            <span class="profile-kicker">{{ isOwnProfile ? "Mi perfil" : "Detalle de usuario" }}</span>
+            <span class="profile-kicker">{{
+              isOwnProfile ? "Mi perfil" : "Detalle de usuario"
+            }}</span>
             <h1>{{ name }}</h1>
             <p>{{ profile.email }}</p>
           </div>
         </div>
 
         <p v-if="detailLoading" class="profile-state">Cargando detalles...</p>
-        <p v-if="detailError" class="profile-state error" role="alert">{{ detailError }}</p>
+        <p v-if="detailError" class="profile-state error" role="alert">
+          {{ detailError }}
+        </p>
 
         <dl class="profile-details">
           <div v-for="item in details" :key="item.label">
@@ -107,8 +72,153 @@ function showOwnProfile() {
             <dd>{{ item.value || "—" }}</dd>
           </div>
         </dl>
+
+        <div v-if="isOwnProfile" class="profile-actions">
+          <BaseButton type="button" color="secondary" @click="openEditProfile">
+            Actualizar datos
+          </BaseButton>
+          <BaseButton type="button" color="danger" @click="openDeleteAccount">
+            Eliminar cuenta
+          </BaseButton>
+        </div>
       </article>
     </section>
+
+    <BaseModal
+      :model-value="editOpen"
+      labelledby="edit-profile-title"
+      :loading="editLoading"
+      @update:model-value="closeEditProfile"
+    >
+      <form class="profile-form" @submit.prevent="saveProfile">
+        <header class="profile-form-header">
+          <h2 id="edit-profile-title">Actualizar mis datos</h2>
+          <BaseButton
+            type="button"
+            color="neutral"
+            size="sm"
+            aria-label="Cerrar"
+            :disabled="editLoading"
+            @click="closeEditProfile"
+          >
+            Cerrar
+          </BaseButton>
+        </header>
+
+        <p v-if="editError" class="profile-state error" role="alert">
+          {{ editError }}
+        </p>
+
+        <div class="profile-form-fields">
+          <label class="profile-form-group" for="profile-name">
+            <span>Nombre</span>
+            <BaseInput
+              id="profile-name"
+              v-model="editForm.name"
+              name="name"
+              autocomplete="name"
+              required
+              :disabled="editLoading"
+            />
+          </label>
+
+          <label class="profile-form-group" for="profile-email">
+            <span>Correo electrónico</span>
+            <BaseInput
+              id="profile-email"
+              v-model="editForm.email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              :disabled="editLoading"
+            />
+          </label>
+
+          <label class="profile-form-group" for="profile-tel">
+            <span>Teléfono</span>
+            <BaseInput
+              id="profile-tel"
+              v-model="editForm.tel"
+              name="tel"
+              type="tel"
+              autocomplete="tel"
+              :disabled="editLoading"
+            />
+          </label>
+
+          <label class="profile-form-group" for="profile-avatar">
+            <span>URL del avatar</span>
+            <BaseInput
+              id="profile-avatar"
+              v-model="editForm.avatarUrl"
+              name="avatarUrl"
+              type="url"
+              :disabled="editLoading"
+            />
+          </label>
+
+          <label class="profile-form-group" for="profile-password">
+            <span>Nueva contraseña (opcional)</span>
+            <BaseInput
+              id="profile-password"
+              v-model="editForm.password"
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              :disabled="editLoading"
+            />
+          </label>
+        </div>
+
+        <footer class="profile-form-actions">
+          <BaseButton
+            type="button"
+            color="neutral"
+            :disabled="editLoading"
+            @click="closeEditProfile"
+          >
+            Cancelar
+          </BaseButton>
+          <BaseButton type="submit" :loading="editLoading">
+            {{ editLoading ? "Guardando..." : "Guardar cambios" }}
+          </BaseButton>
+        </footer>
+      </form>
+    </BaseModal>
+
+    <BaseModal
+      :model-value="deleteOpen"
+      labelledby="delete-account-title"
+      :loading="deleteLoading"
+      @update:model-value="closeDeleteAccount"
+    >
+      <form class="profile-form" @submit.prevent="confirmDeleteAccount">
+        <header class="profile-form-header">
+          <h2 id="delete-account-title">Eliminar mi cuenta</h2>
+        </header>
+        <p>
+          Esta acción eliminará permanentemente tu cuenta y no se puede deshacer.
+        </p>
+        <p v-if="deleteError" class="profile-state error" role="alert">
+          {{ deleteError }}
+        </p>
+        <footer class="profile-form-actions">
+          <BaseButton
+            type="button"
+            color="neutral"
+            :disabled="deleteLoading"
+            @click="closeDeleteAccount"
+          >
+            Cancelar
+          </BaseButton>
+          <BaseButton type="submit" color="danger" :loading="deleteLoading">
+            {{ deleteLoading ? "Eliminando..." : "Eliminar definitivamente" }}
+          </BaseButton>
+        </footer>
+      </form>
+    </BaseModal>
   </div>
 </template>
 
@@ -203,6 +313,50 @@ dt {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   margin-top: 24px;
+}
+
+.profile-actions,
+.profile-form-actions,
+.profile-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+}
+
+.profile-form-header h2 {
+  font-size: 21px;
+}
+
+.profile-form-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.profile-form-group {
+  display: grid;
+  gap: 7px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.profile-form-actions {
+  justify-content: flex-end;
+  padding-top: 4px;
 }
 
 dd {

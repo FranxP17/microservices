@@ -22,6 +22,11 @@ export const userService = {
     return response.data;
   },
 
+  async updateOwnProfile(id, user) {
+    const response = await api.put(ENDPOINTS.USERS.UPDATE(id), user);
+    return response.data;
+  },
+
   async create(user) {
     const response = await api.post(ENDPOINTS.ADMIN.CREATE_USER, user);
     return response.data;
@@ -29,6 +34,11 @@ export const userService = {
 
   async delete(id) {
     const response = await api.delete(ENDPOINTS.ADMIN.UPDATE_USER(id));
+    return response.data;
+  },
+
+  async deleteOwnAccount(id) {
+    const response = await api.delete(ENDPOINTS.USERS.DELETE(id));
     return response.data;
   },
 };

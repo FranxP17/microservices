@@ -143,7 +143,7 @@ ul {
   align-items: center;
   gap: 12px;
   padding: 10px;
-  border-radius: var(--radius-lg);
+  border-radius: 0 10px 10px 0;
   background: transparent;
   color: var(--color-text);
   text-align: left;
