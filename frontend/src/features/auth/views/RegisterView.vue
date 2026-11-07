@@ -33,8 +33,9 @@ async function handleRegister(user) {
   <section class="login-container">
     <div class="login-card">
       <header class="login-header">
-        <h1>Crear cuenta</h1>
-        <p>Registra tus datos para continuar</p>
+        <span class="auth-kicker">ÚNETE A FAUDIX</span>
+        <h1>Crea tu cuenta</h1>
+        <p>Descubre nuevos álbumes y comparte tus reseñas.</p>
       </header>
 
       <div v-if="errorMessage" class="error-message" role="alert">

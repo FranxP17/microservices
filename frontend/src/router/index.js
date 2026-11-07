@@ -6,7 +6,10 @@ import HomeLayout from "../layouts/HomeLayout.vue";
 import Login from "../features/auth/views/LoginView.vue";
 import Register from "../features/auth/views/RegisterView.vue";
 import Dashboard from "../features/dashboard/views/DashboardView.vue";
+import CuratorProfileView from "../features/home/views/CuratorProfileView.vue";
+import FeedView from "../features/home/views/FeedView.vue";
 import MainView from "../features/home/views/MainView.vue";
+import ReviewComposeView from "../features/home/views/ReviewComposeView.vue";
 import Users from "../features/users/views/UsersView.vue";
 
 const routes = [
@@ -44,14 +47,29 @@ const routes = [
       {
         path: "",
         name: "home",
+        component: FeedView,
+      },
+      {
+        path: "profile",
+        name: "profile",
+        component: CuratorProfileView,
+      },
+      {
+        path: "community/users",
+        name: "user-directory",
         component: MainView,
+      },
+      {
+        path: "review/new",
+        name: "write-review",
+        component: ReviewComposeView,
       },
     ],
   },
   {
     path: "/admin/dashboard",
     component: AdminLayout,
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, adminOnly: true },
     children: [
       {
         path: "",
@@ -91,6 +109,9 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(to) {
+    return to.hash ? { el: to.hash, behavior: "smooth" } : { top: 0 };
+  },
 });
 
 router.beforeEach(async (to) => {
@@ -100,7 +121,15 @@ router.beforeEach(async (to) => {
     return { name: "login" };
   }
   if (to.meta.guestOnly && authStore.isAuthenticated) {
-    return { name: "dashboard" };
+    return { name: "home" };
+  }
+  if (to.meta.adminOnly) {
+    const role = authStore.user?.role;
+    const roleName = typeof role === "number"
+      ? ["JOYENT", "CRITIC", "ADMIN"][role]
+      : String(role ?? "").toUpperCase();
+    const isAdmin = roleName === "ADMIN" || roleName === "2";
+    if (!isAdmin) return { name: "home" };
   }
 });
 

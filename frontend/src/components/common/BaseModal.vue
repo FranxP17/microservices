@@ -40,8 +40,8 @@ function requestClose() {
 
 <style scoped>
 .base-modal {
-  width: min(100% - 32px, 520px);
-  max-height: min(90vh, 700px);
+  width: min(calc(100vw - 32px), 540px);
+  max-height: min(90vh, 720px);
   margin: auto;
   padding: 0;
   overflow: auto;
@@ -49,13 +49,17 @@ function requestClose() {
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 20px 60px rgb(15 23 42 / 25%);
+  box-shadow: var(--shadow-modal);
   animation: modal-enter 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+.base-modal:focus {
+  outline: none;
+}
+
 .base-modal::backdrop {
-  background: rgb(15 23 42 / 55%);
-  backdrop-filter: blur(2px);
+  background: var(--color-backdrop);
+  backdrop-filter: blur(3px);
   animation: backdrop-enter 180ms ease;
 }
 
@@ -76,6 +80,20 @@ function requestClose() {
   }
   to {
     opacity: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  .base-modal {
+    width: calc(100vw - 20px);
+    max-height: 92vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .base-modal,
+  .base-modal::backdrop {
+    animation: none;
   }
 }
 </style>

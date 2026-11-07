@@ -37,9 +37,11 @@ async function handleLogin(credentials) {
 <template>
   <section class="login-container">
     <div class="login-card">
-      <div class="login-header">
-        <h1>Ingresa tus credenciales para continuar</h1>
-      </div>
+      <header class="login-header">
+        <span class="auth-kicker">TU CUENTA FAUDIX</span>
+        <h1>Qué bueno verte de nuevo</h1>
+        <p>Inicia sesión y continúa descubriendo música.</p>
+      </header>
 
       <div v-if="errorMessage" class="error-message" role="alert">
         {{ errorMessage }}

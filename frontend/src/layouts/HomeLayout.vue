@@ -1,10 +1,10 @@
 <script setup>
-import AppHeader from '../components/layout/AppHeader.vue';
+import MusicHeader from '../components/layout/MusicHeader.vue'
 </script>
 
 <template>
   <div class="home-layout">
-    <AppHeader />
+    <MusicHeader />
     <main class="main">
       <RouterView v-slot="{ Component, route }">
         <Transition name="page" mode="out-in">

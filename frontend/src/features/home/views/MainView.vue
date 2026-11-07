@@ -270,7 +270,7 @@ const {
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-primary-foreground);
   font-size: 26px;
   font-weight: bold;
 }
@@ -306,7 +306,7 @@ dt {
 }
 
 .profile-state.error {
-  color: #b42318;
+  color: var(--color-danger);
 }
 
 .profile-details {

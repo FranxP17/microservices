@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
+import AccentPicker from '../common/AccentPicker.vue'
+import ThemeToggle from '../common/ThemeToggle.vue'
 
 const roles = ['JOYENT', 'CRITIC', 'ADMIN']
 const authStore = useAuthStore()
@@ -77,64 +79,68 @@ onBeforeUnmount(() => {
       <p>Bienvenido {{userRole !== 'ADMIN' ? userName : 'al sistema'}}</p>
     </div>
 
-    <div ref="menuRef" class="header-menu">
-      <button
-        ref="toggleRef"
-        class="header-user"
-        type="button"
-        aria-haspopup="menu"
-        :aria-expanded="menuOpen"
-        aria-controls="user-menu"
-        @click="menuOpen = !menuOpen"
-      >
-        <span class="avatar" aria-hidden="true">{{ userInitials }}</span>
-        <span class="user-info">
-          <strong>{{ userName }}</strong>
-          <span>{{ userRole }}</span>
-        </span>
-        <i
-          class="fa-solid fa-chevron-down chevron"
-          :class="{ open: menuOpen }"
-          aria-hidden="true"
-        ></i>
-      </button>
+    <div class="header-actions">
+      <ThemeToggle />
+      <AccentPicker />
+      <div ref="menuRef" class="header-menu">
+        <button
+          ref="toggleRef"
+          class="header-user"
+          type="button"
+          aria-haspopup="menu"
+          :aria-expanded="menuOpen"
+          aria-controls="user-menu"
+          @click="menuOpen = !menuOpen"
+        >
+          <span class="avatar" aria-hidden="true">{{ userInitials }}</span>
+          <span class="user-info">
+            <strong>{{ userName }}</strong>
+            <span>{{ userRole }}</span>
+          </span>
+          <i
+            class="fa-solid fa-chevron-down chevron"
+            :class="{ open: menuOpen }"
+            aria-hidden="true"
+          ></i>
+        </button>
 
-      <Transition name="dropdown">
-        <div v-if="menuOpen" id="user-menu" class="dropdown" role="menu">
-          <div class="dropdown-profile">
-            <span class="avatar" aria-hidden="true">{{ userInitials }}</span>
-            <span class="dropdown-profile-text">
-              <strong>{{ userName }}</strong>
-              <small>{{ authStore.user?.email || userRole }}</small>
-            </span>
-          </div>
+        <Transition name="dropdown">
+          <div v-if="menuOpen" id="user-menu" class="dropdown" role="menu">
+            <div class="dropdown-profile">
+              <span class="avatar" aria-hidden="true">{{ userInitials }}</span>
+              <span class="dropdown-profile-text">
+                <strong>{{ userName }}</strong>
+                <small>{{ authStore.user?.email || userRole }}</small>
+              </span>
+            </div>
 
-          <div class="dropdown-section">
-            <button class="dropdown-item" type="button" role="menuitem" @click="go('home')">
-              <i class="fa-solid fa-user" aria-hidden="true"></i>
-              <span>Mi perfil</span>
-            </button>
-            <button
-              v-if="isAdmin && !inAdminArea"
-              class="dropdown-item accent"
-              type="button"
-              role="menuitem"
-              @click="go('dashboard')"
-            >
-              <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
-              <span>Panel de administración</span>
-              <i class="fa-solid fa-arrow-right dropdown-arrow" aria-hidden="true"></i>
-            </button>
-          </div>
+            <div class="dropdown-section">
+              <button class="dropdown-item" type="button" role="menuitem" @click="go('profile')">
+                <i class="fa-solid fa-user" aria-hidden="true"></i>
+                <span>Mi perfil</span>
+              </button>
+              <button
+                v-if="isAdmin && !inAdminArea"
+                class="dropdown-item accent"
+                type="button"
+                role="menuitem"
+                @click="go('dashboard')"
+              >
+                <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                <span>Panel de administración</span>
+                <i class="fa-solid fa-arrow-right dropdown-arrow" aria-hidden="true"></i>
+              </button>
+            </div>
 
-          <div class="dropdown-section">
-            <button class="dropdown-item danger" type="button" role="menuitem" @click="handleLogout">
-              <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
-              <span>Cerrar sesión</span>
-            </button>
+            <div class="dropdown-section">
+              <button class="dropdown-item danger" type="button" role="menuitem" @click="handleLogout">
+                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </Transition>
+        </Transition>
+      </div>
     </div>
   </header>
 </template>
@@ -166,6 +172,12 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-user {
   display: flex;
   align-items: center;
@@ -187,7 +199,7 @@ onBeforeUnmount(() => {
   width: 40px;
   height: 40px;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-primary-foreground);
   display: grid;
   place-items: center;
   border-radius: 8px;
@@ -228,10 +240,8 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  box-shadow:
-    0 2px 6px rgba(22, 42, 36, 0.06),
-    0 16px 36px rgba(22, 42, 36, 0.16);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popover);
   transform-origin: top right;
 }
 
@@ -347,11 +357,11 @@ onBeforeUnmount(() => {
 
 .dropdown-item.danger,
 .dropdown-item.danger > i:first-child {
-  color: #b42318;
+  color: var(--color-danger);
 }
 
 .dropdown-item.danger:hover {
-  background: #fef3f2;
+  background: var(--color-danger-bg);
 }
 
 .dropdown-enter-active,

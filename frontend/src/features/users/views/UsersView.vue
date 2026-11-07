@@ -198,13 +198,15 @@ function userInitials(user) {
           </div>
           <BaseButton
             type="button"
-            color="neutral"
+            color="secondary"
             size="sm"
             aria-label="Cerrar"
+            title="Cerrar"
+            class="modal-close"
             :disabled="editLoading"
             @click="closeEditModal"
           >
-            Cerrar
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
           </BaseButton>
         </header>
 
@@ -340,7 +342,7 @@ function userInitials(user) {
         <header class="edit-header">
           <h2 id="delete-dialog-title">Eliminar usuario</h2>
         </header>
-        <p>
+        <p class="delete-copy">
           Se eliminará permanentemente a
           <strong>{{
             deleteUser?.displayName || deleteUser?.name || deleteUser?.email
@@ -377,18 +379,18 @@ function userInitials(user) {
 .update-message {
   margin-bottom: 16px;
   padding: 12px 14px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--color-success-border);
   border-radius: var(--radius-md);
-  background: #f0fdf4;
-  color: #166534;
+  background: var(--color-success-bg);
+  color: var(--color-success);
   font-size: 13px;
 }
 
 .edit-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px;
+  gap: 0;
+  padding: 0;
 }
 
 .edit-header,
@@ -400,12 +402,41 @@ function userInitials(user) {
 }
 
 .edit-header h2 {
-  font-size: 21px;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.edit-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.edit-header .page-kicker {
+  margin-bottom: 5px;
+}
+
+.modal-close {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .edit-fields {
   display: grid;
-  gap: 16px;
+  gap: 14px;
+  padding: 20px 24px;
+}
+
+.edit-fields :deep(.base-input),
+.form-group select {
+  height: 42px;
 }
 
 .form-group {
@@ -427,22 +458,46 @@ function userInitials(user) {
 }
 
 .form-group select:disabled {
-  background: #f3f4f6;
+  background: var(--color-disabled);
   cursor: not-allowed;
 }
 
 .error-message {
   padding: 12px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-md);
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   font-size: 13px;
+}
+
+.edit-form > .error-message {
+  margin: 16px 24px 0;
+}
+
+.delete-copy {
+  margin: 0;
+  padding: 22px 24px;
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.delete-copy strong {
+  color: var(--color-text);
+}
+
+.delete-copy + .error-message {
+  margin: 0 24px 16px;
 }
 
 .edit-actions {
   justify-content: flex-end;
-  padding-top: 4px;
+  position: sticky;
+  bottom: 0;
+  padding: 14px 24px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-hover);
 }
 
 .users-page {
@@ -499,7 +554,6 @@ function userInitials(user) {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -570,7 +624,7 @@ td {
 th {
   color: var(--color-muted);
   font-weight: 600;
-  background: #f6f9f8;
+  background: var(--color-table-head);
 }
 
 td > button {
@@ -578,7 +632,7 @@ td > button {
 }
 
 tbody tr:not(:has(.empty-state)):hover {
-  background: #f7faf9;
+  background: var(--color-hover);
 }
 
 .user-avatar {
@@ -589,7 +643,7 @@ tbody tr:not(:has(.empty-state)):hover {
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-primary-foreground);
   font-size: 13px;
   font-weight: 700;
 }
@@ -606,19 +660,19 @@ tbody tr:not(:has(.empty-state)):hover {
   min-height: 24px;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: #eef2f1;
+  background: var(--color-hover);
   color: var(--color-muted);
   font-size: 11px;
 }
 
 .active {
-  background: #e6f4ef;
-  color: #17684f;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .inactive {
-  background: #f9ece8;
-  color: #9c4939;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .empty-state {
@@ -650,6 +704,25 @@ tbody tr:not(:has(.empty-state)):hover {
 }
 
 @media (max-width: 560px) {
+  .edit-header,
+  .edit-fields {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .edit-actions {
+    padding: 12px 18px;
+  }
+
+  .delete-copy {
+    padding: 20px 18px;
+  }
+
+  .edit-form > .error-message {
+    margin-right: 18px;
+    margin-left: 18px;
+  }
+
   .page-heading {
     align-items: center;
   }

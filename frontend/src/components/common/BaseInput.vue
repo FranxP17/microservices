@@ -83,7 +83,7 @@ function onInput(event) {
 }
 
 .base-input:disabled {
-  background: #f3f4f6;
+  background: var(--color-disabled);
   cursor: not-allowed;
 }
 

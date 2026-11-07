@@ -246,10 +246,10 @@ const {
   gap: 12px;
   margin: 18px 0;
   padding: 12px 14px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-md);
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
   font-size: 13px;
 }
 
@@ -276,7 +276,6 @@ const {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
 .stat-top {
@@ -297,15 +296,15 @@ const {
 }
 
 .stat-card--active .stat-mark {
-  background: #16a36a;
+  background: var(--color-success);
 }
 
 .stat-card--inactive .stat-mark {
-  background: #d97706;
+  background: var(--color-warning);
 }
 
 .stat-card--blocked .stat-mark {
-  background: #dc5656;
+  background: var(--color-danger);
 }
 
 .stat-value {
@@ -334,7 +333,6 @@ const {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
 .section-heading {
@@ -375,7 +373,7 @@ const {
   height: 8px;
   overflow: hidden;
   border-radius: 999px;
-  background: #edf2f0;
+  background: var(--color-track);
 }
 
 .role-track span {
@@ -410,7 +408,7 @@ const {
 
 .users-link:hover {
   border-color: var(--color-primary);
-  background: #f5faf8;
+  background: var(--color-hover);
 }
 
 .users-link strong,
@@ -480,7 +478,7 @@ td {
 }
 
 th {
-  background: #f6f9f8;
+  background: var(--color-table-head);
   color: var(--color-muted);
   font-weight: 600;
 }
@@ -493,25 +491,25 @@ tbody tr:last-child td {
   display: inline-flex;
   padding: 4px 8px;
   border-radius: 999px;
-  background: #edf2f0;
+  background: var(--color-hover);
   color: var(--color-muted);
   font-size: 11px;
   font-weight: 600;
 }
 
 .status-badge--active {
-  background: #e6f4ef;
-  color: #17684f;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .status-badge--inactive {
-  background: #fff3dc;
-  color: #9a5b08;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .status-badge--blocked {
-  background: #fcebea;
-  color: #a63c3c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .empty-state {

@@ -161,7 +161,7 @@ ul {
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-primary-foreground);
   font-size: 13px;
   font-weight: bold;
 }

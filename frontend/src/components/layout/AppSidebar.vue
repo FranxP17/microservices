@@ -113,7 +113,7 @@ async function handleLogout() {
   flex: 0 0 250px;
   min-height: 100%;
   background: var(--color-sidebar);
-  color: white;
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
@@ -137,13 +137,13 @@ async function handleLogout() {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #c4c9d4;
+  color: var(--color-sidebar-text);
   cursor: pointer;
 }
 
 .sidebar-toggle:hover {
   background: var(--color-sidebar-hover);
-  color: white;
+  color: var(--color-primary);
 }
 
 .sidebar.is-collapsed .sidebar-toggle {
@@ -152,7 +152,7 @@ async function handleLogout() {
 
 .menu-label {
   font-size: 11px;
-  color: #9299a8;
+  color: var(--color-sidebar-muted);
   padding: 0 12px;
   margin-bottom: 12px;
 }
@@ -172,7 +172,7 @@ async function handleLogout() {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  color: #c4c9d4;
+  color: var(--color-sidebar-text);
   text-decoration: none;
   border-radius: 0 8px 8px 0;
   transition:
@@ -183,7 +183,7 @@ async function handleLogout() {
 .menu-item:hover,
 .menu-item.active {
   background: var(--color-sidebar-hover);
-  color: white;
+  color: var(--color-primary);
 }
 
 .menu-item.active {
@@ -215,7 +215,7 @@ async function handleLogout() {
   margin-top: auto;
   padding: 20px 12px 0;
   font-size: 12px;
-  color: #9299a8;
+  color: var(--color-sidebar-muted);
 }
 
 .logout-button {
@@ -227,19 +227,19 @@ async function handleLogout() {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #c4c9d4;
+  color: var(--color-sidebar-text);
   text-align: left;
 }
 
 .logout-button:hover {
   background: var(--color-sidebar-hover);
-  color: white;
+  color: var(--color-danger);
 }
 
 .menu-item:focus-visible,
 .sidebar-toggle:focus-visible,
 .logout-button:focus-visible {
-  outline-color: white;
+  outline-color: var(--color-primary);
 }
 
 .sidebar-version {

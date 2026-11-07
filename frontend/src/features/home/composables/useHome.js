@@ -49,7 +49,7 @@ export function useHome() {
   const isOwnProfile = computed(() => !selectedUser.value);
   const profile = computed(() => selectedUser.value ?? authStore.user);
   const name = computed(
-    () => profile.value.name || profile.value.email || "Usuario",
+    () => profile.value.displayName || profile.value.name || profile.value.email || "Usuario",
   );
 
   const initials = computed(() =>

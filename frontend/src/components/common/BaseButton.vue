@@ -93,7 +93,7 @@ function handleClick(event) {
 <style scoped>
 .base-button {
   --button-background: var(--color-primary);
-  --button-foreground: #fff;
+  --button-foreground: var(--color-primary-foreground);
 
   display: inline-flex;
   align-items: center;
@@ -140,6 +140,7 @@ function handleClick(event) {
 
 .base-button--secondary {
   --button-background: var(--color-sidebar);
+  --button-foreground: var(--color-sidebar-foreground);
 }
 
 .base-button--success {
