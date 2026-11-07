@@ -1,5 +1,9 @@
 <template>
   <main class="auth-layout">
-    <RouterView />
+    <RouterView v-slot="{ Component, route }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" :key="route.name" />
+      </Transition>
+    </RouterView>
   </main>
 </template>

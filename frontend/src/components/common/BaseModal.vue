@@ -50,10 +50,32 @@ function requestClose() {
   background: var(--color-surface);
   color: var(--color-text);
   box-shadow: 0 20px 60px rgb(15 23 42 / 25%);
+  animation: modal-enter 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .base-modal::backdrop {
   background: rgb(15 23 42 / 55%);
   backdrop-filter: blur(2px);
+  animation: backdrop-enter 180ms ease;
+}
+
+@keyframes modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>

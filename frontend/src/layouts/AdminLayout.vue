@@ -9,7 +9,11 @@ import AppHeader from '../components/layout/AppHeader.vue'
     <div class="admin-shell">
       <AppSidebar />
       <section class="admin-content">
-        <RouterView />
+        <RouterView v-slot="{ Component, route }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" :key="route.name" />
+          </Transition>
+        </RouterView>
       </section>
     </div>
   </main>

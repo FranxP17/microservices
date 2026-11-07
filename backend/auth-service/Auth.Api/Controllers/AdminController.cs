@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Auth.Domain.Enums;
 using Auth.Domain.Ports.Out;
 using System.IdentityModel.Tokens.Jwt;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Auth.Api.Controllers
 {
