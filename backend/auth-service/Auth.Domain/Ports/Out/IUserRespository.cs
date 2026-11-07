@@ -9,6 +9,7 @@ namespace Auth.Domain.Ports.Out
         Task UpdateAsync(User user);
         Task<User?> GetByIdSync(Guid id);
         Task<bool> ExitsByIdSync(Guid id);
+        Task<int> GetTotalUsersAsync();
         Task<List<User>> GetByUsersAsync(int page, int limit);
         Task<User?> GetByEmailAsync(string email);
         Task<bool> ExistByEmailUserAsync(string email);

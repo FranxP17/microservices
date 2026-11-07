@@ -38,11 +38,7 @@ async function handleLogin(credentials) {
   <section class="login-container">
     <div class="login-card">
       <div class="login-header">
-        <div class="login-logo">A</div>
-
-        <h1>Administration</h1>
-
-        <p>Ingresa tus credenciales para continuar</p>
+        <h1>Ingresa tus credenciales para continuar</h1>
       </div>
 
       <div v-if="errorMessage" class="error-message" role="alert">
@@ -66,8 +62,6 @@ async function handleLogin(credentials) {
       <div v-if="authStore.isLoading" class="loading-message">
         Verificando credenciales...
       </div>
-
-      <p class="login-footer">Sistema de administración</p>
     </div>
   </section>
 </template>

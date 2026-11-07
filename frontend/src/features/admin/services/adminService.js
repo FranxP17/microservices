@@ -2,9 +2,13 @@ import api from "../../../services/api";
 import { ENDPOINTS } from "../../../services/endpoints";
 
 export const adminService = {
+  getUserCount: async () => {
+    const response = await api.get(ENDPOINTS.ADMIN.LIST);
+    return response.data.totalUsers;
+  },
   list: async () => {
     const response = await api.get(ENDPOINTS.ADMIN.LIST);
-    return response.data;
+    return response.totalUsers;
   },
   detail: async (id) => {
     const response = await api.get(ENDPOINTS.ADMIN.DETAIL(id));

@@ -10,7 +10,7 @@ export const ENDPOINTS = {
     CHANGESTATUS: (id) => `/admin/${id}/status`,
     DELETE: (id) => `/admin/${id}/delete`,
     DETAIL: (id) => `/admin/${id}/detail`,
-    LIST: "/admin/list",
+    LIST: "/admin/counts/users",
     CREATE: "/admin/create",
     UPDATE: (id) => `/admin/${id}/update`,
     UPDATE_USER: (id) => `/admin/users/${id}`,
@@ -19,8 +19,8 @@ export const ENDPOINTS = {
   USERS: {
     BASE: "/users",
     ME: '/users/me',
-    UPDATE: (id) => `/users/${id}/update`,
-    DELETE: (id) => `/users/${id}/delete`,
+    UPDATE: () => `/users/me/credentials`,
+    DELETE: () => `/users/me`,
     DETAIL: (id) => `/users/${id}`,
   },
 };

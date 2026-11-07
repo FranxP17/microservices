@@ -49,6 +49,11 @@ namespace Auth.Infrastructure.Adapters.Out
                 .ToListAsync();
         }
 
+        public Task<int> GetTotalUsersAsync()
+        {
+            return _context.Users.CountAsync();
+        }
+
         public async Task UpdateAsync(User user)
         {
             _context.Update(user);

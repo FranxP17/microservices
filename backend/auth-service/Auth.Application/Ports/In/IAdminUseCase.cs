@@ -9,5 +9,6 @@ namespace Auth.Application.Ports.In
         Task<UserAllResponse> ExecuteUpdateUserAsync(Guid userId, AdminUpdateUserRequest request);
         Task<UserAllResponse> ExecuteCreateUserAsync(AdminUpdateUserRequest request);
         Task ExecuteDeleteUserAsync(Guid userId);
+        Task<int> ExecuteGetTotalUser();
     }
 }

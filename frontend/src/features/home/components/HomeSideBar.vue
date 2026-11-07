@@ -20,7 +20,7 @@ const visibleUsers = computed(() => {
     .filter(
       (user) =>
         !query ||
-        [user.displayName, user.name, user.email]
+        [user.displayName, user.name, user.email, user.tel, user.avatarUrl]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(query)),
     );

@@ -1,11 +1,13 @@
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "../../../stores/authStore";
+import { adminService } from "../../admin/services/adminService";
 import { userService } from "../../users/services/userService";
 import { getErrorMessagge } from "../../../utils/errorHandler";
 
 const roles = ["JOYENT", "CRITIC", "ADMIN"];
 const statuses = ["ACTIVE", "INACTIVE", "BLOCKED"];
+const PAGE_SIZE = 10;
 
 function enumName(value, options) {
   if (typeof value === "number") return options[value] ?? "";
@@ -40,6 +42,7 @@ export function useDashboard() {
   const authStore = useAuthStore();
   const { user, isAuthenticated, isLoading } = storeToRefs(authStore);
   const users = ref([]);
+  const totalUser = ref(0);
   const loading = ref(false);
   const errorMessage = ref("");
   const lastUpdated = ref(null);
@@ -50,7 +53,7 @@ export function useDashboard() {
   });
 
   const userCounts = computed(() => ({
-    total: users.value.length,
+    total: totalUser.value,
     active: users.value.filter(
       (item) => enumName(item.status, statuses) === "ACTIVE",
     ).length,
@@ -65,7 +68,7 @@ export function useDashboard() {
   const statistics = computed(() => [
     {
       title: "Usuarios registrados",
-      value: userCounts.value.total,
+      value: totalUser.value,
       detail: "En el sistema",
       variant: "total",
     },
@@ -117,8 +120,14 @@ export function useDashboard() {
     errorMessage.value = "";
 
     try {
-      const response = await userService.getAll();
-      users.value = getUsersFromResponse(response);
+      totalUser.value = await adminService.getUserCount();
+      const pageCount = Math.ceil(totalUser.value / PAGE_SIZE);
+      const pages = await Promise.all(
+        Array.from({ length: pageCount }, (_, index) =>
+          userService.getAll(index + 1, PAGE_SIZE),
+        ),
+      );
+      users.value = pages.flatMap(getUsersFromResponse);
       lastUpdated.value = new Date();
     } catch (error) {
       errorMessage.value = getErrorMessagge(error);

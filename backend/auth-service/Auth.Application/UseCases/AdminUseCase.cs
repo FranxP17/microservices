@@ -119,5 +119,12 @@ namespace Auth.Application.UseCases
             await _userRespository.UpdateAsync(user);
             return new UserResponse { Message = "Estado actualizado." };
         }
+
+        public async Task<int> ExecuteGetTotalUser()
+        {
+            var totalUsers = await _userRespository.GetTotalUsersAsync();
+            if (totalUsers == 0) return 0;
+            return totalUsers;
+        }
     }
 }

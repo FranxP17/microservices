@@ -5,7 +5,9 @@ namespace Auth.Application.Dtos
         public required Guid Id { get; set; }
         public required string Email { get; set; }
         public required string Name { get; set; }
+        public required string? AvatarUrl { get; set; }
         public required string Role { get; set; }
         public required string Status { get; set; }
+        public required string? Tel { get; set; }
     }
 }

@@ -199,7 +199,8 @@ const {
           <h2 id="delete-account-title">Eliminar mi cuenta</h2>
         </header>
         <p>
-          Esta acción eliminará permanentemente tu cuenta y no se puede deshacer.
+          Esta acción eliminará permanentemente tu cuenta y no se puede
+          deshacer.
         </p>
         <p v-if="deleteError" class="profile-state error" role="alert">
           {{ deleteError }}

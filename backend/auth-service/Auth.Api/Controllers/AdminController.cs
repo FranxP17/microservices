@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Mvc;
 using Auth.Domain.Enums;
 using Auth.Domain.Ports.Out;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Auth.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/admin")]
+    [Authorize(Roles = "ADMIN")]
     public class AdminController(IAdminUseCase adminUseCase, IUserRespository userRepository) : ControllerBase
     {
         private readonly IAdminUseCase _adminUseCase = adminUseCase;
@@ -25,6 +27,17 @@ namespace Auth.Api.Controllers
                 return Forbid();
 
             return Ok(await _adminUseCase.ExecuteUpdateUserAsync(id, request));
+        }
+
+        [HttpGet("counts/users")]
+        [Authorize]
+        public async Task<IActionResult> TotalUsers()
+        {
+            var total = await _adminUseCase.ExecuteGetTotalUser();
+            return Ok(new
+            {
+                TotalUsers = total
+            });
         }
 
         [HttpPost("users")]
@@ -55,12 +68,6 @@ namespace Auth.Api.Controllers
             return NoContent();
         }
 
-        private async Task<bool> IsActiveAdmin(Guid actorId)
-        {
-            var actor = await userRepository.GetByIdSync(actorId);
-            return actor is not null && actor.Role == Role.ADMIN && actor.Status == Status.ACTIVE;
-        }
-
         [HttpPatch("users/{id:guid}/rol")]
         [Authorize]
         public async Task<IActionResult> ChangeRol(Guid id, [FromBody] ChangeRolRequest request)
@@ -81,6 +88,12 @@ namespace Auth.Api.Controllers
             if (!await IsActiveAdmin(actorId))
                 return Forbid();
             return Ok(await _adminUseCase.ExecuteChangeStatusAsync(id, request));
+        }
+
+        private async Task<bool> IsActiveAdmin(Guid actorId)
+        {
+            var actor = await userRepository.GetByIdSync(actorId);
+            return actor is not null && actor.Role == Role.ADMIN && actor.Status == Status.ACTIVE;
         }
     }
 }

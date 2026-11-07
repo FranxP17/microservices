@@ -7,7 +7,11 @@ import { useRouter } from "vue-router";
 
 const roles = ["JOYENT", "CRITIC", "ADMIN"];
 const statuses = ["ACTIVE", "INACTIVE", "BLOCKED"];
-const statusLabels = { ACTIVE: "Activo", INACTIVE: "Inactivo", BLOCKED: "Bloqueado" };
+const statusLabels = {
+  ACTIVE: "Activo",
+  INACTIVE: "Inactivo",
+  BLOCKED: "Bloqueado",
+};
 
 function createProfileForm(profile = {}) {
   return {
@@ -43,10 +47,11 @@ export function useHome() {
   let requestId = 0;
 
   const isOwnProfile = computed(() => !selectedUser.value);
-  const profile = computed(() => selectedUser.value ?? authStore.user ?? {});
+  const profile = computed(() => selectedUser.value ?? authStore.user);
   const name = computed(
-    () => profile.value.displayName || profile.value.name || profile.value.email || "Usuario",
+    () => profile.value.name || profile.value.email || "Usuario",
   );
+
   const initials = computed(() =>
     name.value
       .split(" ")
@@ -78,7 +83,7 @@ export function useHome() {
     try {
       const detail = await userService.getById(user.id);
       if (current === requestId) {
-        selectedUser.value = { ...user, ...(detail?.user ?? detail ?? {}) };
+        selectedUser.value = { ...user, ...detail };
       }
     } catch (error) {
       if (current === requestId) detailError.value = getErrorMessagge(error);
@@ -111,7 +116,8 @@ export function useHome() {
 
     const id = authStore.user?.id;
     if (id == null || id === "") {
-      editError.value = "No se pudo identificar tu cuenta. Vuelve a iniciar sesión e inténtalo de nuevo.";
+      editError.value =
+        "No se pudo identificar tu cuenta. Vuelve a iniciar sesión e inténtalo de nuevo.";
       return;
     }
 
@@ -148,12 +154,21 @@ export function useHome() {
         response?.Data ??
         response;
       const safeReturnedUser =
-        returnedUser && typeof returnedUser === "object" && !Array.isArray(returnedUser)
+        returnedUser &&
+        typeof returnedUser === "object" &&
+        !Array.isArray(returnedUser)
           ? Object.fromEntries(
               Object.entries(returnedUser).filter(([key]) =>
-                ["id", "displayName", "name", "email", "tel", "avatarUrl", "role", "status"].includes(
-                  key,
-                ),
+                [
+                  "id",
+                  "displayName",
+                  "name",
+                  "email",
+                  "tel",
+                  "avatarUrl",
+                  "role",
+                  "status",
+                ].includes(key),
               ),
             )
           : {};
@@ -189,7 +204,8 @@ export function useHome() {
 
     const id = authStore.user?.id;
     if (id == null || id === "") {
-      deleteError.value = "No se pudo identificar tu cuenta. Vuelve a iniciar sesión e inténtalo de nuevo.";
+      deleteError.value =
+        "No se pudo identificar tu cuenta. Vuelve a iniciar sesión e inténtalo de nuevo.";
       return;
     }
 

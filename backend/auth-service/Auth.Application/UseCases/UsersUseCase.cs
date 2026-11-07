@@ -19,8 +19,9 @@ namespace Auth.Application.UseCases
             var hasEmail = !string.IsNullOrWhiteSpace(request.Email);
             var hasPassword = !string.IsNullOrWhiteSpace(request.Password);
             var hasTel = !string.IsNullOrWhiteSpace(request.Tel);
+            var hasAvatar = !string.IsNullOrWhiteSpace(request.AvatarUrl);
 
-            if (!hasEmail && !hasPassword && !hasName && !hasTel)
+            if (!hasEmail && !hasPassword && !hasName && !hasTel && !hasAvatar)
                 throw new InvalidParameterException("Debes enviar al menos un campo para actualizar.");
 
             if (hasEmail)
@@ -47,6 +48,11 @@ namespace Auth.Application.UseCases
             if (hasTel)
             {
                 user.UpdateTel(request.Tel!);
+            }
+
+            if (hasAvatar)
+            {
+                user.UpdateAvatarUrl(request.AvatarUrl!);
             }
 
             await _userRespository.UpdateAsync(user);
@@ -79,9 +85,11 @@ namespace Auth.Application.UseCases
             {
                 Id = user.Id,
                 Email = user.Email,
+                AvatarUrl = user.AvatarUrl,
                 Name = user.DisplayName ?? string.Empty,
                 Role = user.Role.ToString(),
-                Status = user.Status.ToString()
+                Status = user.Status.ToString(),
+                Tel = user.Tel
             };
         }
 

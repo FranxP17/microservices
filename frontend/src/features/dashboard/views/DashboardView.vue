@@ -54,7 +54,9 @@ const {
           <span>{{ item.title }}</span>
           <span class="stat-mark" aria-hidden="true"></span>
         </div>
-        <p class="stat-value">{{ loading && !users.length ? "—" : item.value }}</p>
+        <p class="stat-value">
+          {{ loading && !users.length ? "—" : item.value }}
+        </p>
         <p class="stat-detail">{{ item.detail }}</p>
       </article>
     </div>
@@ -68,7 +70,11 @@ const {
           </div>
         </div>
 
-        <div v-if="loading && !users.length" class="empty-state" aria-live="polite">
+        <div
+          v-if="loading && !users.length"
+          class="empty-state"
+          aria-live="polite"
+        >
           Cargando información...
         </div>
         <div v-else-if="!users.length" class="empty-state">
@@ -113,7 +119,10 @@ const {
           <span class="link-arrow" aria-hidden="true">→</span>
         </RouterLink>
         <p class="user-count">
-          {{ users.length }} {{ users.length === 1 ? "usuario registrado" : "usuarios registrados" }}
+          {{ users.length }}
+          {{
+            users.length === 1 ? "usuario registrado" : "usuarios registrados"
+          }}
         </p>
       </article>
     </div>
@@ -129,7 +138,11 @@ const {
         </RouterLink>
       </div>
 
-      <div v-if="loading && !users.length" class="empty-state" aria-live="polite">
+      <div
+        v-if="loading && !users.length"
+        class="empty-state"
+        aria-live="polite"
+      >
         Cargando usuarios...
       </div>
       <div v-else-if="!users.length" class="empty-state">
@@ -390,7 +403,9 @@ const {
   border-radius: var(--radius-md);
   color: var(--color-text);
   text-decoration: none;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
 }
 
 .users-link:hover {

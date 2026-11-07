@@ -32,6 +32,16 @@ const {
   confirmDeleteUser,
   saveUser,
 } = useUsers();
+
+function userInitials(user) {
+  return (user.displayName || user.name || user.email || "Sin nombre")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 </script>
 
 <template>
@@ -58,7 +68,9 @@ const {
       <div class="table-toolbar">
         <div class="table-heading">
           <h2>Directorio</h2>
-          <p>{{ filteredUsers.length }} resultados entre los usuarios cargados</p>
+          <p>
+            {{ filteredUsers.length }} resultados entre los usuarios cargados
+          </p>
         </div>
         <label class="search-control">
           <span class="visually-hidden">Buscar usuarios</span>
@@ -74,7 +86,7 @@ const {
         <table>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>Avatar</th>
               <th>Nombre</th>
               <th>Correo</th>
               <th>Telefono</th>
@@ -93,7 +105,12 @@ const {
               </td>
             </tr>
             <tr v-for="user in filteredUsers" :key="user.id">
-              <td class="user-id">{{ user.id }}</td>
+              <td>
+                <span class="user-avatar" aria-hidden="true">
+                  <img v-if="user.avatarUrl" :src="user.avatarUrl" alt="" />
+                  <template v-else>{{ userInitials(user) }}</template>
+                </span>
+              </td>
               <td>{{ user.displayName || user.name || "Sin nombre" }}</td>
               <td>{{ user.email }}</td>
               <td>{{ user.tel ? user.tel : "Nulo" }}</td>
@@ -103,10 +120,18 @@ const {
                   class="status"
                   :class="{
                     active: enumName(user.status, statuses) === 'ACTIVE',
-                    inactive: ['INACTIVE', 'BLOCKED'].includes(enumName(user.status, statuses)),
+                    inactive: ['INACTIVE', 'BLOCKED'].includes(
+                      enumName(user.status, statuses),
+                    ),
                   }"
                 >
-                  {{ { ACTIVE: "ACTIVO", INACTIVE: "INACTIVO", BLOCKED: "BLOQUEADO" }[enumName(user.status, statuses)] || user.status }}
+                  {{
+                    {
+                      ACTIVE: "ACTIVO",
+                      INACTIVE: "INACTIVO",
+                      BLOCKED: "BLOQUEADO",
+                    }[enumName(user.status, statuses)] || user.status
+                  }}
                 </span>
               </td>
               <td>
@@ -135,7 +160,9 @@ const {
         </table>
       </div>
       <div v-if="errorMessage || hasMore" class="pagination-controls">
-        <p v-if="errorMessage" class="error-message" role="alert">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="error-message" role="alert">
+          {{ errorMessage }}
+        </p>
         <BaseButton
           type="button"
           color="secondary"
@@ -144,7 +171,13 @@ const {
           :disabled="deleteLoading"
           @click="loadUsers"
         >
-          {{ loading ? "Cargando usuarios..." : errorMessage ? "Reintentar" : "Cargar más" }}
+          {{
+            loading
+              ? "Cargando usuarios..."
+              : errorMessage
+                ? "Reintentar"
+                : "Cargar más"
+          }}
         </BaseButton>
       </div>
     </div>
@@ -159,7 +192,9 @@ const {
         <header class="edit-header">
           <div>
             <p class="page-kicker">Directorio de usuarios</p>
-            <h2 id="edit-dialog-title">{{ editingUser ? "Editar usuario" : "Registrar usuario" }}</h2>
+            <h2 id="edit-dialog-title">
+              {{ editingUser ? "Editar usuario" : "Registrar usuario" }}
+            </h2>
           </div>
           <BaseButton
             type="button"
@@ -181,37 +216,37 @@ const {
           <label class="form-group" for="edit-user-name">
             <span>Nombre</span>
             <BaseInput
-                id="edit-user-name"
-                v-model="editForm.name"
-                name="name"
-                autocomplete="name"
-                required
-                :disabled="editLoading"
+              id="edit-user-name"
+              v-model="editForm.name"
+              name="name"
+              autocomplete="name"
+              required
+              :disabled="editLoading"
             />
           </label>
 
           <label class="form-group" for="edit-user-email">
             <span>Correo electrónico</span>
             <BaseInput
-                id="edit-user-email"
-                v-model="editForm.email"
-                name="email"
-                type="email"
-                autocomplete="email"
-                required
-                :disabled="editLoading"
+              id="edit-user-email"
+              v-model="editForm.email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              :disabled="editLoading"
             />
           </label>
 
           <label class="form-group" for="edit-user-tel">
             <span>Teléfono</span>
             <BaseInput
-                id="edit-user-tel"
-                v-model="editForm.tel"
-                name="tel"
-                type="tel"
-                autocomplete="tel"
-                :disabled="editLoading"
+              id="edit-user-tel"
+              v-model="editForm.tel"
+              name="tel"
+              type="tel"
+              autocomplete="tel"
+              :disabled="editLoading"
             />
           </label>
 
@@ -228,15 +263,27 @@ const {
 
           <label class="form-group" for="edit-user-role">
             <span>Rol</span>
-            <select id="edit-user-role" v-model="editForm.role" required :disabled="editLoading">
+            <select
+              id="edit-user-role"
+              v-model="editForm.role"
+              required
+              :disabled="editLoading"
+            >
               <option disabled value="">Selecciona un rol</option>
-              <option v-for="role in roles" :key="role" :value="role">{{ role }}</option>
+              <option v-for="role in roles" :key="role" :value="role">
+                {{ role }}
+              </option>
             </select>
           </label>
 
           <label class="form-group" for="edit-user-status">
             <span>Estado</span>
-            <select id="edit-user-status" v-model="editForm.status" required :disabled="editLoading">
+            <select
+              id="edit-user-status"
+              v-model="editForm.status"
+              required
+              :disabled="editLoading"
+            >
               <option disabled value="">Selecciona un estado</option>
               <option value="ACTIVE">Activo</option>
               <option value="INACTIVE">Inactivo</option>
@@ -245,7 +292,9 @@ const {
           </label>
 
           <label class="form-group" for="edit-user-password">
-            <span>{{ editingUser ? "Nueva contraseña (opcional)" : "Contraseña" }}</span>
+            <span>{{
+              editingUser ? "Nueva contraseña (opcional)" : "Contraseña"
+            }}</span>
             <BaseInput
               id="edit-user-password"
               v-model="editForm.password"
@@ -269,7 +318,13 @@ const {
             Cancelar
           </BaseButton>
           <BaseButton type="submit" :loading="editLoading">
-            {{ editLoading ? "Guardando..." : editingUser ? "Guardar cambios" : "Crear usuario" }}
+            {{
+              editLoading
+                ? "Guardando..."
+                : editingUser
+                  ? "Guardar cambios"
+                  : "Crear usuario"
+            }}
           </BaseButton>
         </footer>
       </form>
@@ -287,15 +342,29 @@ const {
         </header>
         <p>
           Se eliminará permanentemente a
-          <strong>{{ deleteUser?.displayName || deleteUser?.name || deleteUser?.email }}</strong>.
-          Esta acción no se puede deshacer.
+          <strong>{{
+            deleteUser?.displayName || deleteUser?.name || deleteUser?.email
+          }}</strong
+          >. Esta acción no se puede deshacer.
         </p>
-        <p v-if="deleteError" class="error-message" role="alert">{{ deleteError }}</p>
+        <p v-if="deleteError" class="error-message" role="alert">
+          {{ deleteError }}
+        </p>
         <footer class="edit-actions">
-          <BaseButton type="button" color="neutral" :disabled="deleteLoading" @click="closeDeleteModal">
+          <BaseButton
+            type="button"
+            color="neutral"
+            :disabled="deleteLoading"
+            @click="closeDeleteModal"
+          >
             Cancelar
           </BaseButton>
-          <BaseButton type="submit" color="danger" :loading="deleteLoading" :disabled="loading">
+          <BaseButton
+            type="submit"
+            color="danger"
+            :loading="deleteLoading"
+            :disabled="loading"
+          >
             {{ deleteLoading ? "Eliminando..." : "Eliminar definitivamente" }}
           </BaseButton>
         </footer>
@@ -505,19 +574,30 @@ th {
 }
 
 td > button {
-  margin: 0 .5rem 0 0;
+  margin: 0 0.5rem 0 0;
 }
 
 tbody tr:not(:has(.empty-state)):hover {
   background: #f7faf9;
 }
 
-.user-id {
-  max-width: 170px;
+.user-avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
   overflow: hidden;
-  color: var(--color-muted);
-  font-family: Consolas, monospace;
-  text-overflow: ellipsis;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .status {

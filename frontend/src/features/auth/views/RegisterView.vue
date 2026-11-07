@@ -33,7 +33,6 @@ async function handleRegister(user) {
   <section class="login-container">
     <div class="login-card">
       <header class="login-header">
-        <div class="login-logo">A</div>
         <h1>Crear cuenta</h1>
         <p>Registra tus datos para continuar</p>
       </header>
