@@ -17,6 +17,28 @@ export const authService = {
     return response.data;
   },
 
+  googleLoginUrl() {
+    return new URL(
+      api.getUri({ url: ENDPOINTS.AUTH.GOOGLE }),
+      window.location.origin,
+    ).toString();
+  },
+
+  async getCurrentUser() {
+    const response = await api.get(ENDPOINTS.AUTH.ME);
+    return response.data;
+  },
+
+  async verifyEmail(token) {
+    const response = await api.post(ENDPOINTS.AUTH.VERIFY_EMAIL, { token });
+    return response.data;
+  },
+
+  async resendVerification(email) {
+    const response = await api.post(ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
+    return response.data;
+  },
+
   async logout() {
     const response = await api.post(ENDPOINTS.AUTH.LOGOUT);
     return response.data;

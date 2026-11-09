@@ -1,5 +1,6 @@
 <script setup>
 import MusicHeader from '../components/layout/MusicHeader.vue'
+import MiniPlayer from '../features/home/components/MiniPlayer.vue'
 </script>
 
 <template>
@@ -12,6 +13,7 @@ import MusicHeader from '../components/layout/MusicHeader.vue'
         </Transition>
       </RouterView>
     </main>
+    <MiniPlayer />
   </div>
 </template>
 

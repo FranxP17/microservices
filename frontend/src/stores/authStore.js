@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { authService } from "../features/auth/services/authService";
-import { userService } from "../features/users/services/userService";
+import { profileService } from "../features/home/services/profileService";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
@@ -8,6 +8,8 @@ export const useAuthStore = defineStore("auth", {
     isAuthenticated: false,
     isLoading: false,
     initialized: false,
+    onboardingChecked: false,
+    onboardingComplete: false,
   }),
 
   getters: {
@@ -19,16 +21,13 @@ export const useAuthStore = defineStore("auth", {
     async login(credentials) {
       this.isLoading = true;
       try {
-        const data = await authService.login(credentials);
-        this.user = data?.user ?? {
-          id: data?.userId,
-          name: data?.name ?? "",
-          email: data?.email ?? credentials.email,
-          role: data?.role ?? null,
-        };
-        this.isAuthenticated = true;
+        await authService.login(credentials);
+        const user = await authService.getCurrentUser();
+        this.user = user?.user ?? user;
+        this.isAuthenticated = Boolean(this.user);
         this.initialized = true;
-        return data;
+        this.onboardingChecked = false;
+        return this.user;
       } finally {
         this.isLoading = false;
       }
@@ -48,12 +47,15 @@ export const useAuthStore = defineStore("auth", {
 
       this.isLoading = true;
       try {
-        const data = await userService.getCurrentUser();
+        const data = await authService.getCurrentUser();
         this.user = data?.user ?? data ?? null;
         this.isAuthenticated = Boolean(this.user);
+        this.onboardingChecked = false;
       } catch {
         this.user = null;
         this.isAuthenticated = false;
+        this.onboardingChecked = false;
+        this.onboardingComplete = false;
       } finally {
         this.isLoading = false;
         this.initialized = true;
@@ -66,7 +68,42 @@ export const useAuthStore = defineStore("auth", {
       } finally {
         this.user = null;
         this.isAuthenticated = false;
+        this.onboardingChecked = false;
+        this.onboardingComplete = false;
       }
+    },
+
+    async checkOnboarding() {
+      if (!this.isAuthenticated) return false;
+      if (this.onboardingChecked) return !this.onboardingComplete;
+
+      try {
+        await profileService.getMe();
+      } catch (error) {
+        if (error.response?.status === 404) {
+          this.onboardingComplete = false;
+          this.onboardingChecked = true;
+          return true;
+        }
+        return false;
+      }
+
+      try {
+        const preferences = await profileService.getPreferences();
+        this.onboardingComplete = Boolean(
+          preferences?.isConfigured ?? preferences?.IsConfigured,
+        );
+      } catch {
+        return false;
+      }
+
+      this.onboardingChecked = true;
+      return !this.onboardingComplete;
+    },
+
+    completeOnboarding() {
+      this.onboardingComplete = true;
+      this.onboardingChecked = true;
     },
   },
 });

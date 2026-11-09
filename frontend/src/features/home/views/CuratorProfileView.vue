@@ -1,19 +1,30 @@
 <script setup>
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import BaseButton from "../../../components/common/BaseButton.vue";
 import BaseInput from "../../../components/common/BaseInput.vue";
 import BaseModal from "../../../components/common/BaseModal.vue";
+import { musicService } from "../services/musicService";
+import { socialService } from "../services/socialService";
 import { useHome } from "../composables/useHome.js";
 
 const {
+  user,
+  isOwnProfile,
+  selectedUser,
   profile,
   name,
   initials,
   details,
+  profileExists,
+  detailLoading,
+  detailError,
   editOpen,
   editLoading,
   editError,
   editForm,
+  avatars,
+  avatarsLoading,
   openEditProfile,
   closeEditProfile,
   saveProfile,
@@ -26,30 +37,215 @@ const {
 } = useHome();
 
 const activeTab = ref("reviews");
-const stats = [
-  { value: "184", label: "Reseñas escritas" },
-  { value: "32", label: "Listas creadas" },
-  { value: "1.2k", label: "Seguidores" },
-  { value: "420", label: "Siguiendo" },
-];
-const favorites = [
-  { title: "Currents", artist: "Tame Impala", year: "2015", rating: "5.0", image: "https://images.unsplash.com/photo-1519608487953-e999c86e7455?w=480&h=480&fit=crop&auto=format&q=85" },
-  { title: "Heaven or Las Vegas", artist: "Cocteau Twins", year: "1990", rating: "5.0", image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=480&h=480&fit=crop&auto=format&q=85" },
-  { title: "Disintegration", artist: "The Cure", year: "1989", rating: "5.0", image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=480&h=480&fit=crop&auto=format&q=85" },
-  { title: "Selected Ambient Works", artist: "Aphex Twin", year: "1992", rating: "4.8", image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=480&h=480&fit=crop&auto=format&q=85" },
-];
-const profileReviews = [
-  { title: "Romance", artist: "Fontaines D.C. · 2024", rating: "4.5", published: "hace 2 días", image: favorites[2].image, text: "Una reinvención furiosa, melancólica y cinematográfica que transforma el post-punk en una confesión íntima." },
-  { title: "BRAT", artist: "Charli XCX · 2024", rating: "5.0", published: "hace 1 semana", image: favorites[1].image, text: "Clubbing existencial: la consagración del hyperpop confesional y una radiografía brutal de la inseguridad moderna." },
-];
-const genres = [
-  { name: "Indie Rock", value: 38 },
-  { name: "Dream Pop", value: 24 },
-  { name: "Electronic & Synth", value: 20 },
-  { name: "Ambient & Drone", value: 18 },
-];
-const artists = ["Beach House", "The War on Drugs", "Japanese Breakfast"];
-const playlists = ["Nostalgia de Neón: 1982–1988", "Gazers en la Madrugada", "Post-Punk Latinoamericano 2020s"];
+const router = useRouter();
+const profileReviews = ref([]);
+const favorites = ref([]);
+const followersCount = ref(0);
+const followingCount = ref(0);
+const activityLoading = ref(false);
+const activityError = ref("");
+const isFollowing = ref(false);
+const followLoading = ref(false);
+const reviewToDelete = ref(null);
+const reviewDeleteLoading = ref(false);
+const reviewDeleteError = ref("");
+const targetUserId = computed(() =>
+  profile.value?.userId ?? profile.value?.user_id ??
+  (isOwnProfile.value ? user.value?.id : selectedUser.value?.id),
+);
+const stats = computed(() => [
+  { value: profileReviews.value.length, label: "Reseñas" },
+  { value: favorites.value.length, label: "Favoritos" },
+  { value: followersCount.value, label: "Seguidores" },
+  { value: followingCount.value, label: "Siguiendo" },
+]);
+const genres = computed(() => {
+  const counts = new Map();
+  for (const review of profileReviews.value) {
+    for (const genre of review.genres) counts.set(genre, (counts.get(genre) ?? 0) + 1);
+  }
+  const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count, value: total ? Math.round((count / total) * 100) : 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+});
+const artists = computed(() => {
+  const counts = new Map();
+  for (const review of profileReviews.value) {
+    if (review.artist) counts.set(review.artist, (counts.get(review.artist) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
+});
+
+function getArray(data) {
+  const value = data?.data ?? data?.Data ?? data;
+  return Array.isArray(value) ? value : [];
+}
+
+function getValue(item, camel, pascal) {
+  return item?.[camel] ?? item?.[pascal];
+}
+
+function artistNames(track) {
+  const values = track?.artists ?? track?.Artists ?? [];
+  return values.map((artist) => typeof artist === "string" ? artist : artist.name ?? artist.Name).filter(Boolean).join(", ");
+}
+
+function getGenres(track) {
+  const values = track?.genres ?? track?.Genres ?? [];
+  return values.map((genre) => typeof genre === "string" ? genre : genre.name ?? genre.Name).filter(Boolean);
+}
+
+async function loadProfileActivity() {
+  const userId = targetUserId.value;
+  if (!userId) return;
+  const activeUserId = userId;
+  activityLoading.value = true;
+  activityError.value = "";
+  try {
+    const response = await socialService.getReviews({ userId });
+    const reviews = await Promise.all(getArray(response).map(async (item) => {
+      const musicItemId = getValue(item, "musicItemId", "MusicItemId");
+      let track = null;
+      let musicType = "song";
+      if (musicItemId) {
+        try {
+          track = await musicService.getItem("song", musicItemId);
+        } catch {
+          try {
+            track = await musicService.getItem("album", musicItemId);
+            musicType = "album";
+          } catch {
+            track = null;
+          }
+        }
+      }
+      const album = track?.album ?? track?.Album;
+      const profileData = item.profile ?? item.Profile ?? {};
+      return {
+        id: getValue(item, "id", "Id"),
+        musicType,
+        albumId: musicType === "album" ? musicItemId : getValue(album, "id", "Id"),
+        title: getValue(item, "title", "Title") || "Reseña sin título",
+        rating: Number(getValue(item, "rating", "Rating") ?? 0).toFixed(1),
+        text: getValue(item, "comment", "Comment") ?? "",
+        album: musicType === "album"
+          ? track?.title ?? track?.Title ?? "Álbum"
+          : typeof album === "string" ? album : album?.title ?? album?.Title ?? track?.title ?? track?.Title ?? "Obra musical",
+        artist: artistNames(track),
+        image: musicType === "album"
+          ? track?.imageUrl ?? track?.ImageUrl ?? ""
+          : track?.albumImageUrl ?? track?.AlbumImageUrl ?? album?.imageUrl ?? album?.ImageUrl ?? track?.imageUrl ?? track?.ImageUrl ?? "",
+        genres: getGenres(track),
+        likes: Number(getValue(item, "likesCount", "LikesCount") ?? 0),
+        comments: Number(getValue(item, "commentsCount", "CommentsCount") ?? 0),
+        author: profileData.name ?? profileData.Name ?? "Miembro de Faudix",
+      };
+    }));
+
+    if (targetUserId.value !== activeUserId) return;
+    profileReviews.value = reviews;
+
+    const [followers, following] = await Promise.allSettled([
+      socialService.getFollowers(userId),
+      socialService.getFollowing(userId),
+    ]);
+    followersCount.value = followers.status === "fulfilled" ? getArray(followers.value).length : 0;
+    followingCount.value = following.status === "fulfilled" ? getArray(following.value).length : 0;
+
+    if (isOwnProfile.value) {
+      try {
+        const saved = getArray(await socialService.getFavorites());
+        favorites.value = saved
+          .filter((item) => String(item.type ?? item.Type).toLowerCase() === "album")
+          .map((item) => {
+            const metadata = item.metadata ?? item.Metadata ?? {};
+            return {
+              id: item.id ?? item.Id,
+              title: metadata.title ?? metadata.Title ?? "Álbum",
+              artist: artistNames(metadata),
+              image: metadata.imageUrl ?? metadata.ImageUrl ?? metadata.albumImageUrl ?? metadata.AlbumImageUrl ?? "",
+              genres: getGenres(metadata),
+            };
+          });
+      } catch {
+        favorites.value = [];
+      }
+    } else {
+      favorites.value = [];
+      isFollowing.value = false;
+      if (user.value?.id) {
+        try {
+          const currentFollowing = getArray(await socialService.getFollowing(user.value.id));
+          isFollowing.value = currentFollowing.some((relation) => (relation.id ?? relation.Id) === userId);
+        } catch {
+          isFollowing.value = false;
+        }
+      }
+    }
+  } catch (error) {
+    activityError.value = getErrorMessagge(error);
+    profileReviews.value = [];
+  } finally {
+    activityLoading.value = false;
+  }
+}
+
+async function toggleFollow() {
+  const userId = targetUserId.value;
+  if (!userId || followLoading.value) return;
+  const wasFollowing = isFollowing.value;
+  isFollowing.value = !wasFollowing;
+  followLoading.value = true;
+  try {
+    if (wasFollowing) {
+      await socialService.unfollow(userId);
+      followersCount.value = Math.max(0, followersCount.value - 1);
+    } else {
+      await socialService.follow(userId);
+      followersCount.value += 1;
+    }
+  } catch (error) {
+    isFollowing.value = wasFollowing;
+    activityError.value = getErrorMessagge(error);
+  } finally {
+    followLoading.value = false;
+  }
+}
+
+function openDeleteReview(review) {
+  reviewDeleteError.value = "";
+  reviewToDelete.value = review;
+}
+
+function editReview(review) {
+  return router.push({ name: "write-review", query: { reviewId: review.id } });
+}
+
+function closeDeleteReview() {
+  if (!reviewDeleteLoading.value) reviewToDelete.value = null;
+}
+
+async function confirmDeleteReview() {
+  if (!reviewToDelete.value || reviewDeleteLoading.value) return;
+  reviewDeleteLoading.value = true;
+  reviewDeleteError.value = "";
+  try {
+    await socialService.deleteReview(reviewToDelete.value.id);
+    profileReviews.value = profileReviews.value.filter((review) => review.id !== reviewToDelete.value.id);
+    reviewToDelete.value = null;
+  } catch (error) {
+    reviewDeleteError.value = getErrorMessagge(error);
+  } finally {
+    reviewDeleteLoading.value = false;
+  }
+}
+
+watch([targetUserId, isOwnProfile], loadProfileActivity, { immediate: true });
 
 async function shareProfile() {
   try {
@@ -67,21 +263,27 @@ async function shareProfile() {
 <template>
   <main class="curator-page">
     <div class="curator-container">
+      <p v-if="!profileExists && !detailLoading" class="profile-setup-note">
+        Completa tu perfil público para empezar a compartir tus reseñas.
+        <button type="button" @click="openEditProfile">Crear perfil</button>
+      </p>
+      <p v-if="detailLoading" class="profile-loading" role="status">Cargando perfil...</p>
+      <p v-if="detailError" class="profile-error" role="alert">{{ detailError }}</p>
+      <p v-if="activityError" class="profile-error" role="alert">{{ activityError }}</p>
       <section class="curator-overview">
         <div class="curator-identity">
           <div class="curator-avatar">
             <img v-if="profile.avatarUrl" :src="profile.avatarUrl" :alt="`Foto de ${name}`" />
             <span v-else>{{ initials }}</span>
-            <span class="curator-pro-badge"><i class="fa-solid fa-check" aria-hidden="true"></i> Pro</span>
           </div>
           <div class="curator-copy">
-            <div class="curator-name-line"><h1>{{ name }}</h1><span>@{{ (profile.displayName || profile.name || "curador").toLowerCase().replaceAll(" ", "") }}</span><span class="level-badge"><i class="fa-solid fa-award" aria-hidden="true"></i> Nivel 7 Curadora</span></div>
-            <p>Curadora sonora, adicta al synthwave y a los vinilos de los 80s. Escribo para comprender por qué ciertas frecuencias nos desgarran el alma.</p>
-            <div class="curator-meta"><span><i class="fa-solid fa-location-dot" aria-hidden="true"></i> Ciudad de México, MX</span><span><i class="fa-regular fa-calendar" aria-hidden="true"></i> Miembro desde Feb 2021</span><span class="helpful-count"><i class="fa-solid fa-thumbs-up" aria-hidden="true"></i> 1,840 críticas útiles</span></div>
+            <div class="curator-name-line"><h1>{{ name }}</h1><span>@{{ profile.username || "nuevo-curador" }}</span></div>
+            <p>{{ profile.bio || "Añade una biografía breve para que la comunidad conozca tus gustos." }}</p>
+            <div class="curator-meta"><span><i class="fa-regular fa-envelope" aria-hidden="true"></i> {{ profile.email || "Correo no disponible" }}</span><span><i class="fa-solid fa-user-tag" aria-hidden="true"></i> {{ profile.role || "Miembro Faudix" }}</span></div>
           </div>
           <div class="curator-actions">
-            <RouterLink class="directory-link" :to="{ name: 'user-directory' }">Ver comunidad</RouterLink>
-            <BaseButton type="button" color="secondary" @click="openEditProfile"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar perfil</BaseButton>
+            <BaseButton v-if="isOwnProfile" type="button" color="secondary" @click="openEditProfile"><i class="fa-solid fa-pen" aria-hidden="true"></i> {{ profileExists ? "Editar perfil" : "Crear perfil" }}</BaseButton>
+            <BaseButton v-else type="button" color="secondary" :loading="followLoading" @click="toggleFollow"><i class="fa-solid" :class="isFollowing ? 'fa-user-minus' : 'fa-user-plus'" aria-hidden="true"></i> {{ isFollowing ? "Dejar de seguir" : "Seguir" }}</BaseButton>
             <BaseButton type="button" @click="shareProfile"><i class="fa-solid fa-share-nodes" aria-hidden="true"></i> Compartir</BaseButton>
           </div>
         </div>
@@ -90,62 +292,59 @@ async function shareProfile() {
         </div>
       </section>
 
-      <section class="profile-section" aria-labelledby="favorites-title">
-        <div class="profile-section-heading"><div><div class="profile-title"><i class="fa-regular fa-heart" aria-hidden="true"></i><h2 id="favorites-title">Los 4 álbumes favoritos de todos los tiempos</h2></div><p>Un mapa personal de mis escuchas esenciales.</p></div><span class="section-note">Panteón personal</span></div>
+      <section v-if="isOwnProfile || favorites.length" class="profile-section" aria-labelledby="favorites-title">
+        <div class="profile-section-heading"><div><div class="profile-title"><i class="fa-regular fa-heart" aria-hidden="true"></i><h2 id="favorites-title">Álbumes favoritos</h2></div><p>Guardados en Faudix.</p></div></div>
         <div class="favorites-grid">
-          <article v-for="(album, index) in favorites" :key="album.title" class="favorite-card">
-            <div class="favorite-card__art"><img :src="album.image" :alt="`Portada de ${album.title}`" /><span>#{{ index + 1 }}</span><span class="favorite-rating"><i class="fa-solid fa-star" aria-hidden="true"></i> {{ album.rating }}</span></div>
-            <h3>{{ album.title }}</h3><p>{{ album.artist }}</p><div class="favorite-meta"><span>{{ album.year }}</span><span>{{ ["Indie Rock", "Dream Pop", "Post-Punk", "Ambient"][index] }}</span></div>
+          <article v-for="album in favorites" :key="album.id" class="favorite-card">
+            <div class="favorite-card__art"><img v-if="album.image" :src="album.image" :alt="`Portada de ${album.title}`" /><span v-else class="favorite-art-placeholder"><i class="fa-solid fa-music" aria-hidden="true"></i></span></div>
+            <h3>{{ album.title }}</h3><p>{{ album.artist || "Artista no disponible" }}</p><div class="favorite-meta"><span v-for="genre in album.genres.slice(0, 2)" :key="genre">{{ genre }}</span></div>
           </article>
         </div>
+        <p v-if="!favorites.length && isOwnProfile && !activityLoading" class="profile-empty">Todavía no guardas álbumes favoritos.</p>
       </section>
 
-      <div class="profile-insights">
-        <section class="insight-panel"><div class="insight-heading"><h2><i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Géneros principales</h2><span>Histórico</span></div><div v-for="genre in genres" :key="genre.name" class="genre-stat"><div><span>{{ genre.name }}</span><b>{{ genre.value }}%</b></div><span class="genre-stat__track"><i :style="{ width: `${genre.value}%` }"></i></span></div><div class="genre-tags"><span>Post-Punk</span><span>Shoegaze</span><span>Art Pop</span><span>Nu-Disco</span><span>Krautrock</span></div></section>
-        <section class="insight-panel artist-panel"><div class="insight-heading"><h2><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Artistas del mes</h2><span>Mayo 2024</span></div><ol><li v-for="(artist, index) in artists" :key="artist"><span>{{ String(index + 1).padStart(2, "0") }}</span><i class="artist-avatar" :class="`artist-avatar--${index + 1}`"></i><div><strong>{{ artist }}</strong><small>{{ 148 - index * 36 }} reproducciones</small></div><i class="fa-solid fa-arrow-trend-up trend-icon" aria-hidden="true"></i></li></ol><button type="button" class="panel-link">Ver registro completo de artistas</button></section>
-        <section class="insight-panel affinity-panel"><span class="affinity-eyebrow">Afinidad contigo <b>Muy alta</b></span><div class="affinity-ring"><div><strong>91%</strong><span>Match sonoro</span></div></div><p>Comparten el amor por sintetizadores análogos, dream pop nórdico y producciones de Brian Eno.</p><button type="button">Comparar bibliotecas</button></section>
+      <div v-if="genres.length || artists.length" class="profile-insights">
+        <section v-if="genres.length" class="insight-panel"><div class="insight-heading"><h2><i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Géneros reseñados</h2></div><div v-for="genre in genres" :key="genre.name" class="genre-stat"><div><span>{{ genre.name }}</span><b>{{ genre.count }}</b></div><span class="genre-stat__track"><i :style="{ width: `${genre.value}%` }"></i></span></div></section>
+        <section v-if="artists.length" class="insight-panel artist-panel"><div class="insight-heading"><h2><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Artistas reseñados</h2></div><ol><li v-for="(artist, index) in artists" :key="artist.name"><span>{{ String(index + 1).padStart(2, "0") }}</span><i class="artist-avatar" :class="`artist-avatar--${index + 1}`"></i><div><strong>{{ artist.name }}</strong><small>{{ artist.count }} reseñas</small></div></li></ol></section>
       </div>
 
       <nav class="profile-tabs" aria-label="Actividad del perfil">
-        <button type="button" :class="{ active: activeTab === 'reviews' }" @click="activeTab = 'reviews'"><i class="fa-regular fa-message" aria-hidden="true"></i> Reseñas <span>184</span></button>
-        <button type="button" :class="{ active: activeTab === 'listening' }" @click="activeTab = 'listening'"><i class="fa-solid fa-headphones" aria-hidden="true"></i> Diario de escucha</button>
-        <button type="button" :class="{ active: activeTab === 'lists' }" @click="activeTab = 'lists'"><i class="fa-solid fa-list" aria-hidden="true"></i> Listas creadas <span>32</span></button>
-        <button type="button" :class="{ active: activeTab === 'saved' }" @click="activeTab = 'saved'"><i class="fa-regular fa-bookmark" aria-hidden="true"></i> Canciones guardadas</button>
+        <button type="button" class="active"><i class="fa-regular fa-message" aria-hidden="true"></i> Reseñas <span>{{ profileReviews.length }}</span></button>
       </nav>
 
       <div class="profile-activity">
         <section class="activity-feed" aria-live="polite">
-          <template v-if="activeTab === 'reviews'">
-            <article v-for="review in profileReviews" :key="review.title" class="profile-review">
-              <img :src="review.image" :alt="`Portada de ${review.title}`" />
-              <div class="profile-review__content"><div class="profile-review__meta"><span>★★★★★ <b>{{ review.rating }}</b></span><small>Publicada {{ review.published }}</small></div><h3>{{ review.title }}</h3><p class="profile-review__artist">{{ review.artist }}</p><p>{{ review.text }}</p><div class="review-foot"><span>♬ Canción clave: Starburster</span><span>Post-Punk</span><span>Cuchillo Editorial</span></div><footer><span><i class="fa-regular fa-heart" aria-hidden="true"></i> {{ review.title === 'BRAT' ? '189' : '42' }} Me gusta</span><span><i class="fa-regular fa-comment" aria-hidden="true"></i> {{ review.title === 'BRAT' ? '37' : '14' }} comentarios</span><button type="button" aria-label="Guardar reseña"><i class="fa-regular fa-bookmark" aria-hidden="true"></i></button></footer></div>
+          <p v-if="activityLoading" class="profile-loading" role="status">Cargando reseñas...</p>
+          <template v-else>
+            <article v-for="review in profileReviews" :key="review.id" class="profile-review">
+              <div class="profile-review__art">
+                <img v-if="review.image" :src="review.image" :alt="`Portada de ${review.album}`" />
+                <span v-else class="profile-review__placeholder"><i class="fa-solid" :class="review.musicType === 'album' ? 'fa-compact-disc' : 'fa-music'" aria-hidden="true"></i></span>
+                <span class="profile-review__type">{{ review.musicType === 'album' ? 'Álbum' : 'Canción' }}</span>
+              </div>
+              <div class="profile-review__content"><div class="profile-review__meta"><span>★★★★★ <b>{{ review.rating }}</b></span><small>{{ review.musicType === 'album' ? 'Reseña de álbum' : 'Reseña de canción' }}</small></div><h3>{{ review.title }}</h3><p class="profile-review__artist">{{ review.album }}<template v-if="review.artist"> · {{ review.artist }}</template></p><p>{{ review.text }}</p><div v-if="review.genres.length" class="review-foot"><span v-for="genre in review.genres.slice(0, 3)" :key="genre">{{ genre }}</span></div><footer><span><i class="fa-regular fa-heart" aria-hidden="true"></i> {{ review.likes }}</span><span><i class="fa-regular fa-comment" aria-hidden="true"></i> {{ review.comments }}</span><button v-if="isOwnProfile" type="button" class="edit-review-button" :aria-label="`Editar reseña ${review.title}`" :title="`Editar reseña ${review.title}`" @click="editReview(review)"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></button><button v-if="isOwnProfile" type="button" class="delete-review-button" :aria-label="`Eliminar reseña ${review.title}`" :title="`Eliminar reseña ${review.title}`" @click="openDeleteReview(review)"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button></footer></div>
             </article>
+            <p v-if="!profileReviews.length && !activityLoading" class="profile-empty">{{ isOwnProfile ? "Todavía no has publicado reseñas." : "Este usuario todavía no tiene reseñas." }}</p>
           </template>
-          <div v-else-if="activeTab === 'listening'" class="tab-empty"><i class="fa-solid fa-headphones" aria-hidden="true"></i><h2>Diario de escucha</h2><p>Las últimas sesiones musicales aparecerán aquí.</p></div>
-          <div v-else-if="activeTab === 'lists'" class="profile-list-grid"><article v-for="(playlist, index) in playlists" :key="playlist"><span class="playlist-symbol"><i class="fa-solid" :class="['fa-moon', 'fa-cloud-moon', 'fa-guitar'][index]" aria-hidden="true"></i></span><div><strong>{{ playlist }}</strong><small>{{ [48, 35, 62][index] }} canciones · {{ [1400, 820, 3100][index] }} guardados</small></div><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></article></div>
-          <div v-else class="tab-empty"><i class="fa-regular fa-bookmark" aria-hidden="true"></i><h2>Canciones guardadas</h2><p>Guarda canciones para volver a ellas más tarde.</p></div>
         </section>
 
         <aside class="profile-rail">
-          <section class="rail-panel now-playing"><span class="rail-eyebrow"><i class="fa-solid fa-circle" aria-hidden="true"></i> Escuchando ahora</span><div><img src="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&h=120&fit=crop&auto=format&q=80" alt="" /><span><strong>Inside Out</strong><small>Duster — Stratosphere</small><small><i class="fa-solid fa-headphones" aria-hidden="true"></i> Vía Spotify HiFi</small></span><i class="fa-solid fa-wave-square" aria-hidden="true"></i></div></section>
-          <section class="rail-panel"><div class="rail-heading"><h2>Listas destacadas</h2><button type="button">Ver todas (32)</button></div><ul class="rail-playlists"><li v-for="(playlist, index) in playlists" :key="playlist"><span class="playlist-symbol"><i class="fa-solid" :class="['fa-moon', 'fa-cloud-moon', 'fa-guitar'][index]" aria-hidden="true"></i></span><span><strong>{{ playlist }}</strong><small>{{ [48, 35, 62][index] }} canciones · {{ [1400, 820, 3100][index] }} guardados</small></span></li></ul></section>
-          <section class="rail-panel account-panel"><div class="rail-heading"><h2>Datos de cuenta</h2><button type="button" @click="openEditProfile">Editar</button></div><dl><div v-for="item in details" :key="item.label"><dt>{{ item.label }}</dt><dd>{{ item.value || "—" }}</dd></div></dl><BaseButton type="button" color="danger" size="sm" @click="openDeleteAccount">Eliminar cuenta</BaseButton></section>
+          <section v-if="isOwnProfile" class="rail-panel account-panel"><div class="rail-heading"><h2>Datos de cuenta</h2><button type="button" @click="openEditProfile">Editar</button></div><dl><div v-for="item in details" :key="item.label"><dt>{{ item.label }}</dt><dd>{{ item.value || "—" }}</dd></div></dl><BaseButton type="button" color="danger" size="sm" @click="openDeleteAccount">Eliminar cuenta</BaseButton></section>
         </aside>
       </div>
     </div>
 
     <BaseModal :model-value="editOpen" labelledby="edit-profile-title" :loading="editLoading" @update:model-value="closeEditProfile">
       <form class="profile-form" @submit.prevent="saveProfile">
-        <header class="profile-form-header"><div><p class="eyebrow">Perfil Faudix</p><h2 id="edit-profile-title">Actualizar mis datos</h2></div><BaseButton type="button" color="secondary" size="sm" aria-label="Cerrar" title="Cerrar" :disabled="editLoading" @click="closeEditProfile"><i class="fa-solid fa-xmark" aria-hidden="true"></i></BaseButton></header>
+        <header class="profile-form-header"><div><p class="eyebrow">Perfil Faudix</p><h2 id="edit-profile-title">{{ profileExists ? "Editar perfil" : "Crear perfil público" }}</h2></div><BaseButton type="button" color="secondary" size="sm" aria-label="Cerrar" title="Cerrar" :disabled="editLoading" @click="closeEditProfile"><i class="fa-solid fa-xmark" aria-hidden="true"></i></BaseButton></header>
         <p v-if="editError" class="profile-state error" role="alert">{{ editError }}</p>
         <div class="profile-form-fields">
           <label class="profile-form-group" for="profile-name"><span>Nombre</span><BaseInput id="profile-name" v-model="editForm.name" name="name" autocomplete="name" required :disabled="editLoading" /></label>
-          <label class="profile-form-group" for="profile-email"><span>Correo electrónico</span><BaseInput id="profile-email" v-model="editForm.email" name="email" type="email" autocomplete="email" required :disabled="editLoading" /></label>
-          <label class="profile-form-group" for="profile-tel"><span>Teléfono</span><BaseInput id="profile-tel" v-model="editForm.tel" name="tel" type="tel" autocomplete="tel" :disabled="editLoading" /></label>
-          <label class="profile-form-group" for="profile-avatar"><span>URL del avatar</span><BaseInput id="profile-avatar" v-model="editForm.avatarUrl" name="avatarUrl" type="url" :disabled="editLoading" /></label>
-          <label class="profile-form-group" for="profile-password"><span>Nueva contraseña (opcional)</span><BaseInput id="profile-password" v-model="editForm.password" name="password" type="password" autocomplete="new-password" minlength="8" :disabled="editLoading" /></label>
+          <label class="profile-form-group" for="profile-username"><span>Nombre de usuario</span><BaseInput id="profile-username" v-model="editForm.username" name="username" autocomplete="username" maxlength="50" required :disabled="editLoading" /></label>
+          <label class="profile-form-group" for="profile-bio"><span>Biografía <small>{{ editForm.bio.length }}/500</small></span><textarea id="profile-bio" v-model="editForm.bio" name="bio" maxlength="500" rows="4" :disabled="editLoading" placeholder="Cuéntale a la comunidad qué música te mueve."></textarea></label>
+          <fieldset class="profile-form-group avatar-fieldset"><legend>Elige tu avatar</legend><p v-if="avatarsLoading" class="avatar-loading">Cargando avatares...</p><div v-else-if="avatars.length" class="profile-avatar-options"><label v-for="avatar in avatars" :key="avatar.id" class="profile-avatar-option" :class="{ selected: editForm.avatarId === avatar.id }"><input v-model="editForm.avatarId" type="radio" name="avatarId" :value="avatar.id" :disabled="editLoading" /><img :src="avatar.imageUrl" :alt="avatar.name" /><span>{{ avatar.name }}</span></label></div><p v-else class="avatar-loading">No hay avatares disponibles.</p></fieldset>
         </div>
-        <footer class="profile-form-actions"><BaseButton type="button" color="neutral" :disabled="editLoading" @click="closeEditProfile">Cancelar</BaseButton><BaseButton type="submit" :loading="editLoading">Guardar cambios</BaseButton></footer>
+        <footer class="profile-form-actions"><BaseButton type="button" color="neutral" :disabled="editLoading" @click="closeEditProfile">Cancelar</BaseButton><BaseButton type="submit" :loading="editLoading" :disabled="avatarsLoading || !avatars.length">{{ editLoading ? "Guardando..." : profileExists ? "Guardar perfil" : "Crear perfil" }}</BaseButton></footer>
       </form>
     </BaseModal>
 
@@ -156,6 +355,15 @@ async function shareProfile() {
         <p v-if="deleteError" class="profile-state error" role="alert">{{ deleteError }}</p>
         <footer class="profile-form-actions"><BaseButton type="button" color="neutral" :disabled="deleteLoading" @click="closeDeleteAccount">Cancelar</BaseButton><BaseButton type="submit" color="danger" :loading="deleteLoading">{{ deleteLoading ? "Eliminando..." : "Eliminar definitivamente" }}</BaseButton></footer>
       </form>
+    </BaseModal>
+
+    <BaseModal :model-value="Boolean(reviewToDelete)" labelledby="delete-review-title" :loading="reviewDeleteLoading" @update:model-value="closeDeleteReview">
+      <section class="review-delete-dialog">
+        <header><h2 id="delete-review-title">Eliminar reseña</h2></header>
+        <p>Se eliminará <strong>{{ reviewToDelete?.title }}</strong>. Esta acción no se puede deshacer.</p>
+        <p v-if="reviewDeleteError" class="profile-state error" role="alert">{{ reviewDeleteError }}</p>
+        <footer><BaseButton type="button" color="neutral" :disabled="reviewDeleteLoading" @click="closeDeleteReview">Cancelar</BaseButton><BaseButton type="button" color="danger" :loading="reviewDeleteLoading" @click="confirmDeleteReview">{{ reviewDeleteLoading ? "Eliminando..." : "Eliminar reseña" }}</BaseButton></footer>
+      </section>
     </BaseModal>
   </main>
 </template>
@@ -174,6 +382,9 @@ async function shareProfile() {
 .curator-name-line > span { color: var(--color-primary); font-size: 10px; }
 .curator-name-line .level-badge { padding: 5px 8px; border-radius: 999px; background: var(--color-surface-muted); color: var(--color-primary); }
 .curator-copy > p { max-width: 720px; margin-top: 6px; color: var(--color-muted); font-size: 12px; line-height: 1.55; }
+.profile-setup-note,.profile-loading,.profile-error { margin-bottom: 14px; padding: 11px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-muted); font-size: 12px; }
+.profile-setup-note button { margin-left: 8px; background: transparent; color: var(--color-primary); font-weight: 700; cursor: pointer; }
+.profile-error { border-color: var(--color-danger-border); background: var(--color-danger-bg); color: var(--color-danger); }
 .curator-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; color: var(--color-muted); font-size: 10px; }
 .curator-meta span { display: inline-flex; align-items: center; gap: 5px; }
 .curator-meta .helpful-count { color: var(--color-primary); font-weight: 600; }
@@ -243,7 +454,10 @@ async function shareProfile() {
 .profile-activity { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(250px, .8fr); gap: 16px; margin-top: 16px; }
 .activity-feed,.profile-rail { display: flex; min-width: 0; flex-direction: column; gap: 12px; }
 .profile-review { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 13px; padding: 14px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
-.profile-review > img { width: 88px; aspect-ratio: 1; border-radius: 5px; object-fit: cover; }
+.profile-review__art { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; align-self: start; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-surface-muted); }
+.profile-review__art > img,.profile-review__placeholder { display: grid; width: 100%; height: 100%; place-items: center; object-fit: cover; }
+.profile-review__placeholder { color: var(--color-primary); font-size: 20px; }
+.profile-review__type { position: absolute; right: 5px; bottom: 5px; padding: 4px 6px; border-radius: 999px; background: color-mix(in srgb, var(--color-surface) 92%, transparent); color: var(--color-primary); font-size: 8px; font-weight: 750; backdrop-filter: blur(8px); }
 .profile-review__content { min-width: 0; }
 .profile-review__meta { display: flex; justify-content: space-between; gap: 8px; color: var(--color-primary); font-size: 10px; }
 .profile-review__meta b { color: var(--color-text); }
@@ -255,7 +469,15 @@ async function shareProfile() {
 .review-foot span { padding: 4px 6px; border-radius: 999px; background: var(--color-surface-muted); color: var(--color-muted); font-size: 8px; }
 .profile-review footer { display: flex; align-items: center; gap: 13px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--color-border); color: var(--color-muted); font-size: 9px; }
 .profile-review footer button { margin-left: auto; background: transparent; color: var(--color-muted); cursor: pointer; }
+.profile-review footer .edit-review-button { margin-left: auto; color: var(--color-primary); }
+.profile-review footer .delete-review-button { margin-left: 0; color: var(--color-danger); }
 .profile-review footer i { margin-right: 4px; }
+.review-delete-dialog { display: flex; flex-direction: column; gap: 16px; }
+.review-delete-dialog header { padding: 18px 22px; border-bottom: 1px solid var(--color-border); }
+.review-delete-dialog h2 { font-family: var(--font-heading); font-size: 18px; }
+.review-delete-dialog > p { padding: 0 22px; color: var(--color-muted); font-size: 13px; line-height: 1.55; }
+.review-delete-dialog > p strong { color: var(--color-text); }
+.review-delete-dialog footer { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 13px 22px; border-top: 1px solid var(--color-border); background: var(--color-hover); }
 .rail-eyebrow { color: var(--color-primary); font-size: 9px; font-weight: 700; text-transform: uppercase; }
 .rail-eyebrow i { margin-right: 5px; font-size: 7px; }
 .now-playing > div { display: flex; align-items: center; gap: 9px; margin-top: 10px; padding: 8px; border-radius: 5px; background: var(--color-surface-muted); }
@@ -289,10 +511,23 @@ async function shareProfile() {
 .profile-form-fields { display: grid; gap: 13px; padding: 4px 22px; }
 .profile-form-group { display: grid; gap: 6px; color: var(--color-text); font-size: 11px; font-weight: 600; }
 .profile-form-group :deep(.base-input) { height: 40px; }
+.profile-form-group > span { display: flex; justify-content: space-between; }
+.profile-form-group > span small { color: var(--color-muted); font-weight: 500; }
+.profile-form-group textarea { width: 100%; min-height: 104px; padding: 10px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 12px; resize: vertical; }
+.avatar-fieldset { min-width: 0; border: 0; padding: 0; }
+.avatar-fieldset legend { margin-bottom: 8px; }
+.profile-avatar-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.profile-avatar-option { display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 9px 5px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
+.profile-avatar-option.selected { border-color: var(--color-primary); background: var(--color-primary-container); }
+.profile-avatar-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.profile-avatar-option:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.profile-avatar-option img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--color-surface-muted); }
+.profile-avatar-option > span { max-width: 100%; overflow: hidden; color: var(--color-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.avatar-loading { color: var(--color-muted); font-size: 11px; }
 .profile-form-actions { position: sticky; bottom: 0; justify-content: flex-end; padding: 13px 22px; border-top: 1px solid var(--color-border); background: var(--color-hover); }
 .profile-state.error { margin: 0 22px; color: var(--color-danger); font-size: 12px; }
 .delete-copy { padding: 0 22px; color: var(--color-muted); font-size: 13px; line-height: 1.6; }
 @media (max-width: 1000px) { .profile-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); } .affinity-panel { grid-column: 1 / -1; } .profile-activity { grid-template-columns: minmax(0, 1fr) 260px; } }
 @media (max-width: 760px) { .curator-identity { align-items: flex-start; flex-wrap: wrap; } .curator-actions { width: 100%; justify-content: flex-end; } .profile-activity { grid-template-columns: 1fr; } .profile-rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .account-panel { grid-column: 1 / -1; } }
-@media (max-width: 560px) { .curator-container { padding: 14px 12px 40px; } .curator-overview { padding: 15px; } .curator-avatar { width: 66px; height: 66px; flex-basis: 66px; font-size: 20px; } .curator-name-line h1 { font-size: 20px; } .curator-name-line > span:not(.level-badge) { display: none; } .curator-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; } .profile-section-heading { align-items: flex-start; } .profile-title h2 { font-size: 16px; } .favorites-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .profile-insights,.profile-rail { grid-template-columns: 1fr; } .affinity-panel,.account-panel { grid-column: auto; } .profile-review { grid-template-columns: 62px minmax(0, 1fr); gap: 9px; padding: 10px; } .profile-review > img { width: 62px; } .profile-review__meta small { display: none; } .profile-form-header,.profile-form-fields,.profile-form-actions { padding-right: 16px; padding-left: 16px; } .profile-state.error,.delete-copy { margin-right: 16px; margin-left: 16px; padding-right: 0; padding-left: 0; } }
+@media (max-width: 560px) { .curator-container { padding: 14px 12px 40px; } .curator-overview { padding: 15px; } .curator-avatar { width: 66px; height: 66px; flex-basis: 66px; font-size: 20px; } .curator-name-line h1 { font-size: 20px; } .curator-name-line > span:not(.level-badge) { display: none; } .curator-stats { grid-template-columns: repeat(2, 1fr); gap: 12px; } .profile-section-heading { align-items: flex-start; } .profile-title h2 { font-size: 16px; } .favorites-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .profile-insights,.profile-rail { grid-template-columns: 1fr; } .affinity-panel,.account-panel { grid-column: auto; } .profile-review { grid-template-columns: 68px minmax(0, 1fr); gap: 9px; padding: 10px; } .profile-review__meta small { display: none; } .profile-form-header,.profile-form-fields,.profile-form-actions { padding-right: 16px; padding-left: 16px; } .profile-state.error,.delete-copy { margin-right: 16px; margin-left: 16px; padding-right: 0; padding-left: 0; } }
 </style>

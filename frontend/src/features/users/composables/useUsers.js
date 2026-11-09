@@ -1,5 +1,6 @@
 import { computed, onMounted, ref } from "vue";
 import { userService } from "../services/userService";
+import { profileService } from "../../home/services/profileService";
 import { usePaginatedUsers } from "./usePaginatedUsers";
 import { getErrorMessagge } from "../../../utils/errorHandler";
 
@@ -101,7 +102,7 @@ export function useUsers() {
     const id = deleteUser.value.id;
 
     try {
-      await userService.delete(id);
+      await profileService.deleteUser(id);
       updateMessage.value = "El usuario se eliminó correctamente.";
       deleteLoading.value = false;
       closeDeleteModal();

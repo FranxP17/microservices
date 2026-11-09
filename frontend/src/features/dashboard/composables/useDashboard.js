@@ -1,13 +1,12 @@
 import { computed, onMounted, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "../../../stores/authStore";
-import { adminService } from "../../admin/services/adminService";
 import { userService } from "../../users/services/userService";
 import { getErrorMessagge } from "../../../utils/errorHandler";
 
 const roles = ["JOYENT", "CRITIC", "ADMIN"];
 const statuses = ["ACTIVE", "INACTIVE", "BLOCKED"];
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 100;
 
 function enumName(value, options) {
   if (typeof value === "number") return options[value] ?? "";
@@ -35,7 +34,13 @@ function statusLabel(value) {
 
 function getUsersFromResponse(response) {
   const data = response?.data ?? response?.Data ?? response;
-  return Array.isArray(data) ? data : [];
+  if (Array.isArray(data)) return data;
+  return data?.items ?? data?.Items ?? data?.data ?? data?.Data ?? [];
+}
+
+function getTotalFromResponse(response, users) {
+  const data = response?.data ?? response?.Data ?? response;
+  return Number(data?.total ?? data?.Total ?? data?.totalCount ?? data?.TotalCount ?? users.length);
 }
 
 export function useDashboard() {
@@ -120,14 +125,16 @@ export function useDashboard() {
     errorMessage.value = "";
 
     try {
-      totalUser.value = await adminService.getUserCount();
+      const firstPage = await userService.getAll(1, PAGE_SIZE);
+      const firstUsers = getUsersFromResponse(firstPage);
+      totalUser.value = getTotalFromResponse(firstPage, firstUsers);
       const pageCount = Math.ceil(totalUser.value / PAGE_SIZE);
-      const pages = await Promise.all(
-        Array.from({ length: pageCount }, (_, index) =>
-          userService.getAll(index + 1, PAGE_SIZE),
+      const remainingPages = await Promise.all(
+        Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) =>
+          userService.getAll(index + 2, PAGE_SIZE),
         ),
       );
-      users.value = pages.flatMap(getUsersFromResponse);
+      users.value = [firstUsers, ...remainingPages.map(getUsersFromResponse)].flat();
       lastUpdated.value = new Date();
     } catch (error) {
       errorMessage.value = getErrorMessagge(error);

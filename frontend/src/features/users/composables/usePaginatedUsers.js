@@ -18,9 +18,10 @@ export function usePaginatedUsers() {
     errorMessage.value = "";
     try {
       const response = await userService.getAll(page + 1, PAGE_SIZE);
-      const nextUsers = Array.isArray(response)
-        ? response
-        : (response?.data ?? response?.Data);
+      const payload = response?.data ?? response?.Data ?? response;
+      const nextUsers = Array.isArray(payload)
+        ? payload
+        : (payload?.items ?? payload?.Items ?? payload?.data ?? payload?.Data);
 
       if (!Array.isArray(nextUsers)) {
         errorMessage.value = "El servidor devolvió una lista de usuarios no válida.";

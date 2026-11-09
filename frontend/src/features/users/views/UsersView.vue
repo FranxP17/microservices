@@ -2,6 +2,7 @@
 import BaseButton from "../../../components/common/BaseButton.vue";
 import BaseInput from "../../../components/common/BaseInput.vue";
 import BaseModal from "../../../components/common/BaseModal.vue";
+import { useNotifications } from "../../home/composables/useNotifications";
 import { useUsers } from "../composables/useUsers";
 
 const {
@@ -32,6 +33,7 @@ const {
   confirmDeleteUser,
   saveUser,
 } = useUsers();
+const { onlineUserIds, connected: realtimeConnected } = useNotifications();
 
 function userInitials(user) {
   return (user.displayName || user.name || user.email || "Sin nombre")
@@ -65,6 +67,7 @@ function userInitials(user) {
     </p>
 
     <div class="users-card">
+      <p v-if="!realtimeConnected" class="realtime-note" role="status">Reconectando a presencia en tiempo real...</p>
       <div class="table-toolbar">
         <div class="table-heading">
           <h2>Directorio</h2>
@@ -92,13 +95,14 @@ function userInitials(user) {
               <th>Telefono</th>
               <th>Rol</th>
               <th>Estado</th>
+              <th>Conexión</th>
               <th>Acciones</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="filteredUsers.length === 0 && !loading && !errorMessage">
-              <td colspan="7" class="empty-state">
+              <td colspan="8" class="empty-state">
                 {{
                   search ? "No hay usuarios que coincidan." : "No hay usuarios."
                 }}
@@ -132,6 +136,15 @@ function userInitials(user) {
                       BLOCKED: "BLOQUEADO",
                     }[enumName(user.status, statuses)] || user.status
                   }}
+                </span>
+              </td>
+              <td>
+                <span
+                  class="connection-status"
+                  :class="{ online: onlineUserIds.has(String(user.id).toLowerCase()) }"
+                >
+                  <i class="fa-solid fa-circle" aria-hidden="true"></i>
+                  {{ onlineUserIds.has(String(user.id).toLowerCase()) ? "Conectado" : "Desconectado" }}
                 </span>
               </td>
               <td>
@@ -555,6 +568,31 @@ function userInitials(user) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+}
+
+.realtime-note {
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.connection-status i {
+  color: var(--color-muted);
+  font-size: 7px;
+}
+
+.connection-status.online,
+.connection-status.online i {
+  color: var(--color-success);
 }
 
 .pagination-controls {

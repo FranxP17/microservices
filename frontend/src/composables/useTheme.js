@@ -20,10 +20,14 @@ const theme = ref(getInitialTheme());
 document.documentElement.dataset.theme = theme.value;
 
 function setTheme(nextTheme) {
-  theme.value = nextTheme;
-  document.documentElement.dataset.theme = nextTheme;
+  const resolvedTheme = nextTheme === "system"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : nextTheme;
+  if (!themes.includes(resolvedTheme)) return;
+  theme.value = resolvedTheme;
+  document.documentElement.dataset.theme = resolvedTheme;
   try {
-    localStorage.setItem(STORAGE_KEY, nextTheme);
+    localStorage.setItem(STORAGE_KEY, resolvedTheme);
   } catch {
     // The theme still works for this session when storage is unavailable.
   }
@@ -32,6 +36,7 @@ function setTheme(nextTheme) {
 export function useTheme() {
   return {
     theme,
+    setTheme,
     toggleTheme: () => setTheme(theme.value === "light" ? "dark" : "light"),
   };
 }

@@ -5,11 +5,14 @@ import AdminLayout from "../layouts/AdminLayout.vue";
 import HomeLayout from "../layouts/HomeLayout.vue";
 import Login from "../features/auth/views/LoginView.vue";
 import Register from "../features/auth/views/RegisterView.vue";
+import OnboardingView from "../features/auth/views/OnboardingView.vue";
+import VerifyEmailView from "../features/auth/views/VerifyEmailView.vue";
 import Dashboard from "../features/dashboard/views/DashboardView.vue";
 import CuratorProfileView from "../features/home/views/CuratorProfileView.vue";
 import FeedView from "../features/home/views/FeedView.vue";
 import MainView from "../features/home/views/MainView.vue";
 import ReviewComposeView from "../features/home/views/ReviewComposeView.vue";
+import AlbumDetailView from "../features/home/views/AlbumDetailView.vue";
 import Users from "../features/users/views/UsersView.vue";
 
 const routes = [
@@ -40,6 +43,24 @@ const routes = [
     ],
   },
   {
+    path: "/verify-email",
+    name: "verify-email",
+    component: VerifyEmailView,
+  },
+  {
+    path: "/onboarding",
+    component: AuthLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: "",
+        name: "onboarding",
+        component: OnboardingView,
+        meta: { onboarding: true },
+      },
+    ],
+  },
+  {
     path: "/",
     component: HomeLayout,
     meta: { requiresAuth: true },
@@ -50,7 +71,7 @@ const routes = [
         component: FeedView,
       },
       {
-        path: "profile",
+        path: "profile/:userId?",
         name: "profile",
         component: CuratorProfileView,
       },
@@ -63,6 +84,11 @@ const routes = [
         path: "review/new",
         name: "write-review",
         component: ReviewComposeView,
+      },
+      {
+        path: "albums/:externalId",
+        name: "album-detail",
+        component: AlbumDetailView,
       },
     ],
   },
@@ -119,6 +145,17 @@ router.beforeEach(async (to) => {
   await authStore.initializeAuth();
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: "login" };
+  }
+  if (to.meta.onboarding && !(await authStore.checkOnboarding())) {
+    return { name: "home" };
+  }
+  if (
+    to.meta.requiresAuth &&
+    !to.meta.onboarding &&
+    !to.meta.adminOnly &&
+    (await authStore.checkOnboarding())
+  ) {
+    return { name: "onboarding" };
   }
   if (to.meta.guestOnly && authStore.isAuthenticated) {
     return { name: "home" };

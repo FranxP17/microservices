@@ -2,8 +2,8 @@ import api from "../../../services/api";
 import { ENDPOINTS } from "../../../services/endpoints";
 
 export const userService = {
-  async getAll(page = 1, limit = 10) {
-    const response = await api.get(ENDPOINTS.USERS.BASE, { params: { page, limit } });
+  async getAll(page = 1, pageSize = 10) {
+    const response = await api.get(ENDPOINTS.USERS.BASE, { params: { page, pageSize } });
     return response.data;
   },
 

@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../../stores/authStore";
+import GoogleAuthButton from "../components/GoogleAuthButton.vue";
 import RegisterForm from "../components/RegisterForm.vue";
 
 const router = useRouter();
@@ -12,7 +13,14 @@ async function handleRegister(user) {
   errorMessage.value = "";
 
   try {
-    await authStore.register(user);
+    const result = await authStore.register(user);
+    if (result?.requiresEmailConfirmation) {
+      await router.replace({
+        name: "login",
+        query: { registered: "1", email: result.email ?? user.email },
+      });
+      return;
+    }
     await router.replace({ name: "login", query: { registered: "1" } });
   } catch (error) {
     const status = error.response?.status;
@@ -38,11 +46,20 @@ async function handleRegister(user) {
         <p>Descubre nuevos álbumes y comparte tus reseñas.</p>
       </header>
 
+      <ol class="signup-steps" aria-label="Pasos de registro">
+        <li class="active" aria-current="step"><span>1</span><small>Auth</small></li>
+        <li><span>2</span><small>Profile</small></li>
+        <li><span>3</span><small>Preferences</small></li>
+      </ol>
+      <p class="signup-step-note">Confirma tu correo e inicia sesión para completar tu perfil y preferencias.</p>
+
       <div v-if="errorMessage" class="error-message" role="alert">
         {{ errorMessage }}
       </div>
 
       <RegisterForm :loading="authStore.isLoading" @submit="handleRegister" />
+      <div class="auth-provider-divider"><span>o crea tu cuenta con</span></div>
+      <GoogleAuthButton :disabled="authStore.isLoading" />
 
       <p class="auth-switch">
         ¿Ya tienes cuenta? <RouterLink :to="{ name: 'login' }">Iniciar sesión</RouterLink>

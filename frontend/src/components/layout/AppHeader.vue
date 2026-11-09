@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/authStore'
 import AccentPicker from '../common/AccentPicker.vue'
+import NotificationBell from '../common/NotificationBell.vue'
 import ThemeToggle from '../common/ThemeToggle.vue'
 
 const roles = ['JOYENT', 'CRITIC', 'ADMIN']
@@ -82,6 +83,7 @@ onBeforeUnmount(() => {
     <div class="header-actions">
       <ThemeToggle />
       <AccentPicker />
+      <NotificationBell />
       <div ref="menuRef" class="header-menu">
         <button
           ref="toggleRef"

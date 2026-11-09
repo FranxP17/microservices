@@ -69,6 +69,104 @@
   gap: 18px;
 }
 
+.auth-provider-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: var(--color-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.auth-provider-divider::before,
+.auth-provider-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--color-border);
+  content: "";
+}
+
+.signup-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 0 9px;
+  padding: 0;
+  list-style: none;
+}
+
+.signup-steps li {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.signup-steps li > span {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.signup-steps li.active > span {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+.signup-steps li.active small {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.signup-step-note {
+  margin-bottom: 20px;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.google-auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.google-auth-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-hover);
+}
+
+.google-auth-button > i {
+  color: #4285f4;
+  font-size: 15px;
+}
+
+.google-auth-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

@@ -1,9 +1,9 @@
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useAuthStore } from "../../../stores/authStore";
-import { userService } from "../../users/services/userService";
+import { profileService } from "../services/profileService";
 import { getErrorMessagge } from "../../../utils/errorHandler";
 import { storeToRefs } from "pinia";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 const roles = ["JOYENT", "CRITIC", "ADMIN"];
 const statuses = ["ACTIVE", "INACTIVE", "BLOCKED"];
@@ -15,12 +15,44 @@ const statusLabels = {
 
 function createProfileForm(profile = {}) {
   return {
-    name: profile.displayName || profile.name || "",
-    email: profile.email || "",
-    tel: profile.tel ?? "",
-    avatarUrl: profile.avatarUrl ?? "",
-    password: "",
+    name: profile.name || profile.displayName || "",
+    username: profile.username || "",
+    bio: profile.bio || "",
+    avatarId: profile.avatar_id || profile.avatarId || "",
   };
+}
+
+function normalizeProfile(profile = {}) {
+  const name = profile.name ?? profile.Name ?? profile.displayName ?? "";
+  const username = profile.username ?? profile.Username ?? "";
+  const bio = profile.bio ?? profile.Bio ?? "";
+  const avatarId = profile.avatar_id ?? profile.Avatar_id ?? profile.avatarId ?? "";
+
+  return {
+    ...profile,
+    id: profile.id ?? profile.Id,
+    userId: profile.user_id ?? profile.User_id ?? profile.userId,
+    name,
+    displayName: name,
+    username,
+    bio,
+    avatarId,
+    avatar_id: avatarId,
+  };
+}
+
+function normalizeAvatar(avatar = {}) {
+  return {
+    id: avatar.id ?? avatar.Id ?? avatar.avatar_id ?? avatar.Avatar_id ?? "",
+    name: avatar.name ?? avatar.Name ?? "Avatar",
+    imageUrl:
+      avatar.image_url ?? avatar.Image_url ?? avatar.imageUrl ?? avatar.ImageUrl ?? "",
+  };
+}
+
+function getArray(data) {
+  const result = data?.data ?? data?.Data ?? data?.avatars ?? data;
+  return Array.isArray(result) ? result : [];
 }
 
 function enumName(value, options) {
@@ -32,9 +64,14 @@ function enumName(value, options) {
 
 export function useHome() {
   const authStore = useAuthStore();
+  const route = useRoute();
   const router = useRouter();
   const { user } = storeToRefs(authStore);
   const selectedUser = ref(null);
+  const ownProfile = ref(null);
+  const ownAvatar = ref(null);
+  const avatars = ref([]);
+  const avatarsLoading = ref(false);
   const detailLoading = ref(false);
   const detailError = ref("");
   const editOpen = ref(false);
@@ -47,9 +84,20 @@ export function useHome() {
   let requestId = 0;
 
   const isOwnProfile = computed(() => !selectedUser.value);
-  const profile = computed(() => selectedUser.value ?? authStore.user);
+  const profile = computed(() => {
+    if (selectedUser.value) return selectedUser.value;
+    const account = authStore.user ?? {};
+    return {
+      ...account,
+      ...(ownProfile.value ?? {}),
+      email: account.email,
+      role: account.role,
+      status: account.status,
+      avatarUrl: ownAvatar.value?.imageUrl || account.avatarUrl || "",
+    };
+  });
   const name = computed(
-    () => profile.value.displayName || profile.value.name || profile.value.email || "Usuario",
+    () => profile.value?.displayName || profile.value?.name || profile.value?.email || "Usuario",
   );
 
   const initials = computed(() =>
@@ -70,10 +118,53 @@ export function useHome() {
 
   const details = computed(() => [
     { label: "Correo", value: profile.value.email },
-    { label: "Teléfono", value: profile.value.tel },
+    { label: "Usuario", value: profile.value.username },
+    { label: "Biografía", value: profile.value.bio },
     { label: "Rol", value: role.value },
     { label: "Estado", value: status.value },
   ]);
+
+  async function loadOwnProfile() {
+    detailLoading.value = true;
+    detailError.value = "";
+    try {
+      ownProfile.value = normalizeProfile(await profileService.getMe());
+      const userId = authStore.user?.id ?? ownProfile.value.userId;
+      if (userId) {
+        try {
+          ownAvatar.value = normalizeAvatar(
+            await profileService.getUserAvatar(userId),
+          );
+        } catch {
+          ownAvatar.value = null;
+        }
+      }
+    } catch (error) {
+      if (error.response?.status === 404) {
+        ownProfile.value = null;
+        ownAvatar.value = null;
+      } else {
+        detailError.value = getErrorMessagge(error);
+      }
+    } finally {
+      detailLoading.value = false;
+    }
+  }
+
+  async function loadAvatars() {
+    if (avatars.value.length || avatarsLoading.value) return;
+    avatarsLoading.value = true;
+    try {
+      avatars.value = getArray(await profileService.getAvatars()).map(normalizeAvatar);
+      if (!editForm.value.avatarId && avatars.value.length) {
+        editForm.value.avatarId = avatars.value[0].id;
+      }
+    } catch (error) {
+      editError.value = getErrorMessagge(error);
+    } finally {
+      avatarsLoading.value = false;
+    }
+  }
 
   async function selectUser(user) {
     const current = ++requestId;
@@ -81,9 +172,16 @@ export function useHome() {
     detailError.value = "";
     detailLoading.value = true;
     try {
-      const detail = await userService.getById(user.id);
+      const detail = normalizeProfile(await profileService.getById(user.id));
+      let avatarUrl = user.avatarUrl || "";
+      try {
+        const avatar = normalizeAvatar(await profileService.getUserAvatar(user.id));
+        avatarUrl = avatar.imageUrl || avatarUrl;
+      } catch {
+        // The public profile may not have an avatar assigned.
+      }
       if (current === requestId) {
-        selectedUser.value = { ...user, ...detail };
+        selectedUser.value = { ...user, ...detail, avatarUrl };
       }
     } catch (error) {
       if (current === requestId) detailError.value = getErrorMessagge(error);
@@ -96,93 +194,59 @@ export function useHome() {
     requestId++;
     selectedUser.value = null;
     detailError.value = "";
-    detailLoading.value = false;
+    if (route.params.userId) router.replace({ name: "profile" });
+    loadOwnProfile();
   }
 
-  function openEditProfile() {
-    editForm.value = createProfileForm(authStore.user);
+  async function openEditProfile() {
+    editForm.value = createProfileForm(profile.value);
     editError.value = "";
     editOpen.value = true;
+    await loadAvatars();
   }
 
   function closeEditProfile() {
     if (editLoading.value) return;
     editOpen.value = false;
-    editForm.value.password = "";
   }
 
   async function saveProfile() {
     if (editLoading.value) return;
 
-    const id = authStore.user?.id;
-    if (id == null || id === "") {
-      editError.value =
-        "No se pudo identificar tu cuenta. Vuelve a iniciar sesión e inténtalo de nuevo.";
-      return;
-    }
-
     const displayName = editForm.value.name.trim();
-    const email = editForm.value.email.trim();
-    const password = editForm.value.password;
-    if (!displayName || !email) {
-      editError.value = "El nombre y el correo electrónico son obligatorios.";
+    const username = editForm.value.username.trim();
+    const bio = editForm.value.bio.trim();
+    const avatarId = editForm.value.avatarId;
+    if (!displayName || !username || !avatarId) {
+      editError.value = "El nombre, nombre de usuario y avatar son obligatorios.";
       return;
     }
-    if (password && (!password.trim() || password.length < 8)) {
-      editError.value =
-        "La contraseña debe tener al menos 8 caracteres y no puede contener solo espacios.";
+    if (displayName.length > 100 || username.length > 50 || bio.length > 500) {
+      editError.value = "Revisa los límites: nombre 100, usuario 50 y biografía 500 caracteres.";
       return;
     }
 
     editLoading.value = true;
     editError.value = "";
     const payload = {
-      displayName,
-      email,
-      tel: String(editForm.value.tel).trim(),
-      avatarUrl: String(editForm.value.avatarUrl).trim(),
-      ...(password ? { password } : {}),
+      name: displayName,
+      username,
+      bio,
+      avatar_id: avatarId,
     };
 
     try {
-      const response = await userService.updateOwnProfile(id, payload);
-      const returnedUser =
-        response?.user ??
-        response?.data?.user ??
-        response?.data ??
-        response?.Data?.user ??
-        response?.Data ??
-        response;
-      const safeReturnedUser =
-        returnedUser &&
-        typeof returnedUser === "object" &&
-        !Array.isArray(returnedUser)
-          ? Object.fromEntries(
-              Object.entries(returnedUser).filter(([key]) =>
-                [
-                  "id",
-                  "displayName",
-                  "name",
-                  "email",
-                  "tel",
-                  "avatarUrl",
-                  "role",
-                  "status",
-                ].includes(key),
-              ),
-            )
-          : {};
+      const response = ownProfile.value
+        ? await profileService.update(payload)
+        : await profileService.create(payload);
+      ownProfile.value = normalizeProfile(response);
+      ownAvatar.value = avatars.value.find((avatar) => avatar.id === avatarId) ?? null;
       authStore.user = {
         ...authStore.user,
-        ...safeReturnedUser,
-        displayName,
-        email,
-        tel: payload.tel,
-        avatarUrl: payload.avatarUrl,
         name: displayName,
+        displayName,
       };
       editOpen.value = false;
-      editForm.value.password = "";
     } catch (error) {
       editError.value = getErrorMessagge(error);
     } finally {
@@ -202,17 +266,10 @@ export function useHome() {
   async function confirmDeleteAccount() {
     if (deleteLoading.value) return;
 
-    const id = authStore.user?.id;
-    if (id == null || id === "") {
-      deleteError.value =
-        "No se pudo identificar tu cuenta. Vuelve a iniciar sesión e inténtalo de nuevo.";
-      return;
-    }
-
     deleteLoading.value = true;
     deleteError.value = "";
     try {
-      await userService.deleteOwnAccount(id);
+      await profileService.deleteMe();
       authStore.$patch({
         user: null,
         isAuthenticated: false,
@@ -226,13 +283,19 @@ export function useHome() {
     }
   }
 
+  onMounted(() => {
+    if (route.params.userId) selectUser({ id: String(route.params.userId) });
+    else loadOwnProfile();
+  });
+
   return {
     user,
     selectedUser,
-    detailLoading,
-    detailError,
     isOwnProfile,
     profile,
+    profileExists: computed(() => Boolean(selectedUser.value || ownProfile.value)),
+    detailLoading,
+    detailError,
     name,
     initials,
     role,
@@ -244,6 +307,8 @@ export function useHome() {
     editLoading,
     editError,
     editForm,
+    avatars,
+    avatarsLoading,
     openEditProfile,
     closeEditProfile,
     saveProfile,

@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../../stores/authStore";
+import GoogleAuthButton from "../components/GoogleAuthButton.vue";
 import LoginForm from "../components/LoginForm.vue";
 
 const router = useRouter();
@@ -16,7 +17,7 @@ async function handleLogin(credentials) {
   try {
     await authStore.login(credentials);
 
-    router.push({ name: "home" });
+    await router.replace({ name: "home" });
   } catch (error) {
     const status = error.response?.status;
 
@@ -48,14 +49,20 @@ async function handleLogin(credentials) {
       </div>
 
       <div v-if="route.query.registered" class="success-message" role="status">
-        Registro completado. Ya puedes iniciar sesión.
+        Te enviamos un correo para confirmar tu cuenta antes de iniciar sesión.
       </div>
 
       <div v-if="route.query.logoutError" class="error-message" role="alert">
         El cierre de sesión no pudo confirmarse con el servidor.
       </div>
 
+      <div v-if="route.query.error === 'google'" class="error-message" role="alert">
+        No se pudo iniciar sesión con Google. Inténtalo de nuevo.
+      </div>
+
       <LoginForm :loading="authStore.isLoading" @submit="handleLogin" />
+      <div class="auth-provider-divider"><span>o continúa con</span></div>
+      <GoogleAuthButton :disabled="authStore.isLoading" />
 
       <p class="auth-switch">
         ¿No tienes cuenta? <RouterLink :to="{ name: 'register' }">Crear cuenta</RouterLink>

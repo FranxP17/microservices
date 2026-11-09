@@ -12,6 +12,7 @@ const {
   name,
   initials,
   details,
+  profileExists,
   detailLoading,
   detailError,
   selectUser,
@@ -20,6 +21,8 @@ const {
   editLoading,
   editError,
   editForm,
+  avatars,
+  avatarsLoading,
   openEditProfile,
   closeEditProfile,
   saveProfile,
@@ -58,6 +61,8 @@ const {
             }}</span>
             <h1>{{ name }}</h1>
             <p>{{ profile.email }}</p>
+            <p v-if="profile.username">@{{ profile.username }}</p>
+            <p v-if="profile.bio">{{ profile.bio }}</p>
           </div>
         </div>
 
@@ -73,9 +78,18 @@ const {
           </div>
         </dl>
 
+        <RouterLink
+          v-if="!isOwnProfile && selectedUser?.id"
+          class="public-profile-link"
+          :to="{ name: 'profile', params: { userId: selectedUser.id } }"
+        >
+          Ver perfil y reseñas
+          <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+        </RouterLink>
+
         <div v-if="isOwnProfile" class="profile-actions">
           <BaseButton type="button" color="secondary" @click="openEditProfile">
-            Actualizar datos
+            {{ profileExists ? "Editar perfil" : "Crear perfil" }}
           </BaseButton>
           <BaseButton type="button" color="danger" @click="openDeleteAccount">
             Eliminar cuenta
@@ -92,7 +106,7 @@ const {
     >
       <form class="profile-form" @submit.prevent="saveProfile">
         <header class="profile-form-header">
-          <h2 id="edit-profile-title">Actualizar mis datos</h2>
+          <h2 id="edit-profile-title">{{ profileExists ? "Editar perfil" : "Crear perfil público" }}</h2>
           <BaseButton
             type="button"
             color="neutral"
@@ -122,54 +136,36 @@ const {
             />
           </label>
 
-          <label class="profile-form-group" for="profile-email">
-            <span>Correo electrónico</span>
+          <label class="profile-form-group" for="profile-username">
+            <span>Nombre de usuario</span>
             <BaseInput
-              id="profile-email"
-              v-model="editForm.email"
-              name="email"
-              type="email"
-              autocomplete="email"
+              id="profile-username"
+              v-model="editForm.username"
+              name="username"
+              autocomplete="username"
+              maxlength="50"
               required
               :disabled="editLoading"
             />
           </label>
 
-          <label class="profile-form-group" for="profile-tel">
-            <span>Teléfono</span>
-            <BaseInput
-              id="profile-tel"
-              v-model="editForm.tel"
-              name="tel"
-              type="tel"
-              autocomplete="tel"
-              :disabled="editLoading"
-            />
+          <label class="profile-form-group" for="profile-bio">
+            <span>Biografía <small>{{ editForm.bio.length }}/500</small></span>
+            <textarea id="profile-bio" v-model="editForm.bio" name="bio" maxlength="500" rows="4" :disabled="editLoading" placeholder="Cuéntale a la comunidad qué música te mueve."></textarea>
           </label>
 
-          <label class="profile-form-group" for="profile-avatar">
-            <span>URL del avatar</span>
-            <BaseInput
-              id="profile-avatar"
-              v-model="editForm.avatarUrl"
-              name="avatarUrl"
-              type="url"
-              :disabled="editLoading"
-            />
-          </label>
-
-          <label class="profile-form-group" for="profile-password">
-            <span>Nueva contraseña (opcional)</span>
-            <BaseInput
-              id="profile-password"
-              v-model="editForm.password"
-              name="password"
-              type="password"
-              autocomplete="new-password"
-              minlength="8"
-              :disabled="editLoading"
-            />
-          </label>
+          <fieldset class="profile-form-group avatar-fieldset">
+            <legend>Elige tu avatar</legend>
+            <p v-if="avatarsLoading" class="avatar-loading">Cargando avatares...</p>
+            <div v-else-if="avatars.length" class="profile-avatar-options">
+              <label v-for="avatar in avatars" :key="avatar.id" class="profile-avatar-option" :class="{ selected: editForm.avatarId === avatar.id }">
+                <input v-model="editForm.avatarId" type="radio" name="avatarId" :value="avatar.id" :disabled="editLoading" />
+                <img :src="avatar.imageUrl" :alt="avatar.name" />
+                <span>{{ avatar.name }}</span>
+              </label>
+            </div>
+            <p v-else class="avatar-loading">No hay avatares disponibles.</p>
+          </fieldset>
         </div>
 
         <footer class="profile-form-actions">
@@ -182,7 +178,7 @@ const {
             Cancelar
           </BaseButton>
           <BaseButton type="submit" :loading="editLoading">
-            {{ editLoading ? "Guardando..." : "Guardar cambios" }}
+            {{ editLoading ? "Guardando..." : profileExists ? "Guardar perfil" : "Crear perfil" }}
           </BaseButton>
         </footer>
       </form>
@@ -331,6 +327,21 @@ dt {
   margin-top: 24px;
 }
 
+.public-profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.public-profile-link:hover {
+  text-decoration: underline;
+}
+
 .profile-form {
   display: flex;
   flex-direction: column;
@@ -353,6 +364,95 @@ dt {
   color: var(--color-text);
   font-size: 13px;
   font-weight: 600;
+}
+
+.profile-form-group > span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.profile-form-group > span small {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.profile-form-group textarea {
+  width: 100%;
+  min-height: 104px;
+  padding: 10px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.avatar-fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+}
+
+.avatar-fieldset legend {
+  margin-bottom: 8px;
+}
+
+.profile-avatar-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+}
+
+.profile-avatar-option {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.profile-avatar-option.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-container);
+}
+
+.profile-avatar-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.profile-avatar-option:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.profile-avatar-option img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-surface-muted);
+}
+
+.profile-avatar-option > span,
+.avatar-loading {
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.profile-avatar-option > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-form-actions {
