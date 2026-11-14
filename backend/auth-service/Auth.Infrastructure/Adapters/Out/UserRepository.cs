@@ -44,6 +44,7 @@ namespace Auth.Infrastructure.Adapters.Out
         {
             return _context.Users
                 .AsNoTracking()
+                .OrderByDescending(u => u.Created_at)
                 .Skip((page - 1) * limit)
                 .Take(limit)
                 .ToListAsync();

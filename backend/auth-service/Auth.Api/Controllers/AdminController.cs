@@ -1,9 +1,9 @@
 ﻿using Auth.Application.Dtos;
 using Auth.Application.Ports.In;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Auth.Domain.Enums;
 using Auth.Domain.Ports.Out;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace Auth.Api.Controllers
@@ -11,21 +11,39 @@ namespace Auth.Api.Controllers
     [ApiController]
     [Route("api/v1/admin")]
     [Authorize(Roles = "ADMIN")]
-    public class AdminController(IAdminUseCase adminUseCase, IUserRespository userRepository) : ControllerBase
+    public class AdminController(IAdminUseCase adminUseCase, IUserRespository userRepository, IUsersUseCase usersUseCase) : ControllerBase
     {
         private readonly IAdminUseCase _adminUseCase = adminUseCase;
+        private readonly IUsersUseCase _usersUseCase = usersUseCase;
 
         [HttpPut("users/{id:guid}")]
         [Authorize]
         public async Task<IActionResult> UpdateUser(Guid id, [FromBody] AdminUpdateUserRequest request)
         {
-            if (!Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var actorId))
-                return Unauthorized();
+            try
+            {
+                var response = await _adminUseCase.ExecuteUpdateUserAsync(id, request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
-            if (!await IsActiveAdmin(actorId))
-                return Forbid();
-
-            return Ok(await _adminUseCase.ExecuteUpdateUserAsync(id, request));
+        [HttpGet("users")]
+        [Authorize]
+        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int limit = 10)
+        {
+            try
+            {
+                var response = await _usersUseCase.ExecuteGetByUsersAsync(page, limit);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpGet("counts/users")]
@@ -41,7 +59,7 @@ namespace Auth.Api.Controllers
 
         [HttpPost("users")]
         [Authorize]
-        public async Task<IActionResult> CreateUser([FromBody] AdminUpdateUserRequest request)
+        public async Task<IActionResult> CreateUser([FromBody] CreateRequest request)
         {
             if (!Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var actorId))
                 return Unauthorized();
@@ -71,22 +89,30 @@ namespace Auth.Api.Controllers
         [Authorize]
         public async Task<IActionResult> ChangeRol(Guid id, [FromBody] ChangeRolRequest request)
         {
-            if (!Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var actorId))
-                return Unauthorized();
-            if (!await IsActiveAdmin(actorId))
-                return Forbid();
-            return Ok(await _adminUseCase.ExecuteChangeRolAsync(id, request));
+            try
+            {
+                var response = await _adminUseCase.ExecuteChangeRolAsync(id, request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPatch("users/{id:guid}/status")]
         [Authorize]
         public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeStatusRequest request)
         {
-            if (!Guid.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var actorId))
-                return Unauthorized();
-            if (!await IsActiveAdmin(actorId))
-                return Forbid();
-            return Ok(await _adminUseCase.ExecuteChangeStatusAsync(id, request));
+            try
+            {
+                var response = await _adminUseCase.ExecuteChangeStatusAsync(id, request);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         private async Task<bool> IsActiveAdmin(Guid actorId)

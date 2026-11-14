@@ -7,7 +7,7 @@ namespace Auth.Application.Ports.In
         Task<UserResponse> ExecuteChangeRolAsync(Guid userId, ChangeRolRequest request);
         Task<UserResponse> ExecuteChangeStatusAsync(Guid userId, ChangeStatusRequest request);
         Task<UserAllResponse> ExecuteUpdateUserAsync(Guid userId, AdminUpdateUserRequest request);
-        Task<UserAllResponse> ExecuteCreateUserAsync(AdminUpdateUserRequest request);
+        Task<UserAllResponse> ExecuteCreateUserAsync(CreateRequest request);
         Task ExecuteDeleteUserAsync(Guid userId);
         Task<int> ExecuteGetTotalUser();
     }

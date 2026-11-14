@@ -12,21 +12,6 @@ namespace Auth.Api.Controllers
     {
         private readonly IUsersUseCase _usersUseCase = usersUseCase;
 
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int limit = 10)
-        {
-            try
-            {
-                var response = await _usersUseCase.ExecuteGetByUsersAsync(page, limit);
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMyProfile()

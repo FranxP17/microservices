@@ -2,6 +2,6 @@
 {
     public class ChangeRolRequest
     {
-        public required string Rol { get; set; }
+        public required string Role { get; set; }
     }
 }
